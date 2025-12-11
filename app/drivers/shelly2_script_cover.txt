@@ -1,0 +1,10 @@
+"""Script per spegnimento ritardato proiettore da caricare su Shelly pro2+ """
+        // Ritardo ON su Shelly Pro 2
+            let SWITCH_ID = 0;      // 0 o 1
+            let DELAY_SEC = 30;     // ritardo in secondi
+    
+            Timer.set(DELAY_SEC * 1000, false, function () {
+            Shelly.call("Switch.Set", { id: SWITCH_ID, on: false });
+            // opzionale: fermo lo script dopo aver fatto il lavoro
+            Shelly.call("Script.Stop", { id: Shelly.getCurrentScriptId() });
+                                                            });"""

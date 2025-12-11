@@ -1,0 +1,11 @@
+[Unit]
+Description=Aggiorna la pianificazione power RTC per roomctl
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/roomctl/config
+# Esegui esplicitamente tramite l'interprete Python per evitare errori
+# "Permission denied" se il file non ha il bit di esecuzione.
+ExecStart= sudo /usr/bin/python3 -u /opt/roomctl/config/power_scheduler.py

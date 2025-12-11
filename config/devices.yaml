@@ -1,0 +1,35 @@
+dsp:
+  addr: 3
+  host: 192.168.1.230
+  input:
+    '0': true
+    '1': true
+    '2': false
+    '3': false
+  output:
+    '0': true
+    '1': false
+    '2': false
+    '3': false
+    '4': false
+    '5': false
+    '6': false
+    '7': false
+  port: 4196
+projector:
+  host: 192.168.1.220
+  nic_warmup_s: 12
+  password: '1234'
+  pjlink_retries: 4
+  pjlink_timeout_s: 8
+  port: 4352
+  post_power_on_delay_s: 1.5
+shelly1:
+  base: http://192.168.1.10
+  ch1: 0
+  ch2: 1
+shelly2:
+  base: http://192.168.1.11
+  ch1: 0
+  ch2: 1
+  inverti_corsa: true

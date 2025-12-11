@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="screen">
+  <header class="header">
+    <div class="title">ROOMCTL</div>
+  </header>
+
+  <main class="main">
+    <div class="buttons-grid">
+      <form method="post" action="/ui/scene/avvio_semplice">
+        <button class="btn btn-green">Avvio Lezione Semplice</button>
+      </form>
+      <form method="post" action="/ui/scene/avvio_video">
+        <button class="btn btn-blue">Avvio Lezione Video</button>
+      </form>
+      {% if show_combined %}
+      <form method="post" action="/ui/scene/avvio_video_combinata">
+        <button class="btn btn-ice">Avvio Lezione<br>Video Combinata</button>
+      </form>
+      {% else %}
+      <div class="btn-placeholder"></div>
+      {% endif %}
+      <form method="post" action="/ui/scene/spegni_aula">
+        <button class="btn btn-sand">Fine Lezione – Spegni Aula</button>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="status">Stato: {{ state.text or '' }}</div>
+    <div id="badge-input" class="badge">Input: {{ (state.projector.input if state.projector else '—') if state else '—' }}</div>
+    <form action="/auth/pin" method="post" class="pin-form">
+      <input name="pin" type="password" placeholder="PIN operatore" class="pin-input">
+      <button class="btn-operator">Area Operatore</button>
+    </form>
+  </footer>
+</div>
+{% endblock %}

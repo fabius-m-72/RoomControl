@@ -1,0 +1,9 @@
+days:
+- mon
+- tue
+- wed
+- thu
+- sat
+enabled: true
+off_time: 11:38
+on_time: 11:36

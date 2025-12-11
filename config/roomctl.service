@@ -1,0 +1,17 @@
+[Unit]
+Description=Room control API e interfaccia web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=roomctl
+Group=roomctl
+WorkingDirectory=/opt/roomctl
+Environment=ROOMCTL_BASE=http://127.0.0.1:8080
+ExecStart=/opt/roomctl/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080 --proxy-headers
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

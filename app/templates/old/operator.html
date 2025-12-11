@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class='p-4 space-y-8'>
+  <form method='post' action='/operator/toggle_combined' class='flex items-center gap-3'>
+    <input type='hidden' name='value' value='{{ 'false' if show_combined else 'true' }}'>
+    <span class='font-semibold'>Mostra “Avvio Lezione Video Combinata (HDMI2)”</span>
+    <button class='btn small'>{{ 'ON' if show_combined else 'OFF' }}</button>
+  </form>
+  <section class='panel'><h2 class='panel-title'>Proiettore</h2>
+    <div class='grid sm:grid-cols-3 gap-3'>
+      <form method='post' action='/operator/projector/power'><input type='hidden' name='on' value='true'><button class='btn success w-full'>ACCENDI</button></form>
+      <form method='post' action='/operator/projector/power'><input type='hidden' name='on' value='false'><button class='btn danger w-full'>SPEGNI</button></form>
+    </div>
+    <div class='grid sm:grid-cols-3 gap-3 mt-3'>
+      <form method='post' action='/operator/projector/input'><input type='hidden' name='source' value='HDMI1'><button class='btn w-full'>HDMI 1</button></form>
+      <form method='post' action='/operator/projector/input'><input type='hidden' name='source' value='HDMI2'><button class='btn w-full'>HDMI 2</button></form>
+      <form method='post' action='/operator/projector/input'><input type='hidden' name='source' value='AUTO'><button class='btn w-full'>AUTO</button></form>
+    </div>
+  </section>
+  <section class='panel'><h2 class='panel-title'>DSP408</h2>
+    <div class='grid sm:grid-cols-2 gap-3'>
+      <form method='post' action='/operator/dsp/mute'><input type='hidden' name='mute' value='false'><button class='btn success w-full'>ACCENDI (unmute)</button></form>
+      <form method='post' action='/operator/dsp/mute'><input type='hidden' name='mute' value='true'><button class='btn danger w-full'>SPEGNI (mute)</button></form>
+    </div>
+    <div class='mt-4'><label class='lbl'>Master volume (dB)</label>
+      <form method='post' action='/operator/dsp/vol_master' class='flex items-center gap-3'>
+        <input name='db' type='range' min='-60' max='0' value='-20' oninput='this.nextElementSibling.value=this.value' class='rng'>
+        <output class='out'>-20</output><button class='btn small'>Imposta</button>
+      </form>
+    </div>
+    <div class='mt-4 grid sm:grid-cols-2 gap-4'>
+      <div><label class='lbl'>Ingresso 1 (dB)</label>
+        <form method='post' action='/operator/dsp/vol_input' class='flex items-center gap-3'>
+          <input type='hidden' name='ch' value='1'>
+          <input name='db' type='range' min='-60' max='0' value='-10' oninput='this.nextElementSibling.value=this.value' class='rng'>
+          <output class='out'>-10</output><button class='btn small'>Imposta</button>
+        </form>
+      </div>
+      <div><label class='lbl'>Ingresso 2 (dB)</label>
+        <form method='post' action='/operator/dsp/vol_input' class='flex items-center gap-3'>
+          <input type='hidden' name='ch' value='2'>
+          <input name='db' type='range' min='-60' max='0' value='-10' oninput='this.nextElementSibling.value=this.value' class='rng'>
+          <output class='out'>-10</output><button class='btn small'>Imposta</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  <section class='panel'><h2 class='panel-title'>Shelly</h2>
+    <div class='grid sm:grid-cols-2 gap-3'>
+      <form method='post' action='/operator/shelly/set'><input type='hidden' name='sid' value='shelly1_ch1'><input type='hidden' name='on' value='true'><button class='btn w-full'>Main power Proiettore ON</button></form>
+      <form method='post' action='/operator/shelly/set'><input type='hidden' name='sid' value='shelly1_ch1'><input type='hidden' name='on' value='false'><button class='btn danger w-full'>Main power Proiettore OFF</button></form>
+      <form method='post' action='/operator/shelly/set'><input type='hidden' name='sid' value='shelly1_ch2'><input type='hidden' name='on' value='true'><button class='btn w-full'>Main power DSP ON</button></form>
+      <form method='post' action='/operator/shelly/set'><input type='hidden' name='sid' value='shelly1_ch2'><input type='hidden' name='on' value='false'><button class='btn danger w-full'>Main power DSP OFF</button></form>
+      <form method='post' action='/operator/shelly/pulse'><input type='hidden' name='sid' value='shelly2_ch1'><button class='btn w-full'>Telo giù (pulse)</button></form>
+      <form method='post' action='/operator/shelly/pulse'><input type='hidden' name='sid' value='shelly2_ch2'><button class='btn w-full'>Telo su (pulse)</button></form>
+    </div>
+  </section>
+  <section class='panel'><h2 class='panel-title'>Stato</h2><pre id='json-state' class='statebox'>{}</pre></section>
+  <form method='post' action='/auth/logout'><button class='btn danger'>Logout</button></form>
+</div>
+{% endblock %}

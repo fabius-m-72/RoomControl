@@ -1,0 +1,507 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1080, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>RoomCTL</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/roomctl.css">
+</head>
+<body class="bg-slate-900 text-slate-100 overflow-hidden">
+
+  <script>
+    (function(){
+      try {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(proto + '//' + location.host + '/ws');
+        ws.onmessage = (ev)=>{
+          try{
+            const s = JSON.parse(ev.data||'{}');
+            const el = document.getElementById('badge-input');
+            if (el){
+              const inp = (s.projector && s.projector.input) || s.projector_input || '—';
+              const pwr = (s.projector && s.projector.power===true) || s.projector_power===true;
+              el.textContent = 'Input: ' + inp;
+              el.className = 'badge ' + (pwr?'ok':'warn');
+            }
+            const st = document.getElementById('json-state');
+            if(st){ st.textContent = JSON.stringify(s, null, 2); }
+          }catch(e){}
+        };
+      } catch(e){}
+    })();
+  </script>
+</body>
+
+<div class="screen">
+  <header class="header">
+    <div class="title">ROOMCTL</div>
+  </header>
+
+  <main class="main">
+    {# lezione attiva: "semplice", "video", "combinata" oppure None #}
+    {% set active_lesson = state.current_lesson if state and (state.current_lesson is defined) and state.current_lesson else None %}
+
+    {% if show_combined %}
+      <div class="buttons-grid">
+        <form method="post" action="/ui/scene/avvio_semplice">
+          <button class="btn btn-green"
+                  {% if active_lesson %}disabled{% endif %}>
+            Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
+          </button>
+        </form>
+
+        <form method="post" action="/ui/scene/avvio_video">
+          <button class="btn btn-blue"
+                  {% if active_lesson %}disabled{% endif %}>
+            Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
+          </button>
+        </form>
+
+        <form method="post" action="/ui/scene/avvio_video_combinata">
+          <button class="btn btn-ice"
+                  {% if active_lesson %}disabled{% endif %}>
+            Avvio Lezione<br>Video Combinata{% if active_lesson == 'combinata' %} ...in corso{% endif %}
+          </button>
+        </form>
+
+        <form method="post" action="/ui/scene/spegni_aula">
+          <button class="btn btn-sand">
+                    {% if not active_lesson %}disabled{% endif %}>
+            Fine Lezione – Spegni Aula
+          </button>
+        </form>
+      </div>
+    {% else %}
+      <div class="buttons-grid">
+        <form method="post" action="/ui/scene/avvio_semplice">
+          <button class="btn btn-green"
+                  {% if active_lesson %}disabled{% endif %}>
+            Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
+          </button>
+        </form>
+
+        <form method="post" action="/ui/scene/avvio_video">
+          <button class="btn btn-blue"
+                  {% if active_lesson %}disabled{% endif %}>
+            Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
+          </button>
+        </form>
+      </div>
+
+      <div class="buttons-row-center">
+        <form method="post" action="/ui/scene/spegni_aula">
+          <button class="btn btn-sand">
+                {% if not active_lesson %}disabled{% endif %}>
+            Fine Lezione – Spegni Aula
+          </button>
+        </form>
+      </div>
+    {% endif %}
+  </main>
+
+  <footer class="footer">
+    <div class="status">Stato: {{ state.text or '' }}</div>
+    <div id="badge-input" class="badge">
+      Input: {{ (state.projector.input if state.projector else '—') if state else '—' }}
+    </div>
+
+    {# Area Operatore sempre abilitato #}
+    <button type="button" class="btn-operator" id="open-pin-overlay">
+      Area Operatore
+    </button>
+  </footer>
+</div>
+
+{# OVERLAY PIN OPERATORE #}
+<div id="pin-overlay" class="pin-overlay hidden">
+  <div class="pin-overlay-backdrop"></div>
+
+  <div class="pin-overlay-dialog">
+    <div class="pin-overlay-title">Accesso Operatore</div>
+
+    {% if pin_error %}
+      <div class="pin-error">PIN non valido. Riprova.</div>
+    {% endif %}
+
+    <form method="post" action="/auth/pin" class="pin-keypad-form">
+      <div id="pin-dots" class="pin-dots"></div>
+
+      <input type="hidden" name="pin" id="pin-value">
+
+      <div class="pin-keypad-grid">
+        {% for n in [1,2,3,4,5,6,7,8,9] %}
+        <button type="button" class="pin-key" data-key="{{ n }}">{{ n }}</button>
+        {% endfor %}
+
+        <button type="button" class="pin-key pin-key-action" data-action="clear">C</button>
+        <button type="button" class="pin-key" data-key="0">0</button>
+        <button type="button" class="pin-key pin-key-action" data-action="backspace">⌫</button>
+      </div>
+
+      <div class="pin-actions">
+        <button type="button" class="btn pin-cancel" id="pin-cancel">Annulla</button>
+        <button type="submit" class="btn btn-operator pin-ok">OK</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  const MAX_LEN = 4; // o 6 se il PIN è a 6 cifre
+
+  const overlay   = document.getElementById('pin-overlay');
+  const openBtn   = document.getElementById('open-pin-overlay');
+  const cancelBtn = document.getElementById('pin-cancel');
+  const pinValue  = document.getElementById('pin-value');
+  const pinDots   = document.getElementById('pin-dots');
+  const keys      = overlay.querySelectorAll('.pin-key');
+  const backdrop  = overlay.querySelector('.pin-overlay-backdrop');
+
+  function renderDots() {
+    const len = (pinValue.value || '').length;
+    pinDots.textContent = '●'.repeat(len);
+  }
+
+  function clearPin() {
+    pinValue.value = '';
+    renderDots();
+  }
+
+  function addDigit(d) {
+    if (pinValue.value.length >= MAX_LEN) return;
+    pinValue.value += d;
+    renderDots();
+  }
+
+  function backspace() {
+    pinValue.value = pinValue.value.slice(0, -1);
+    renderDots();
+  }
+
+  function openOverlay() {
+    clearPin();
+    overlay.classList.remove('hidden');
+  }
+
+  function closeOverlay() {
+    overlay.classList.add('hidden');
+    clearPin();
+  }
+
+  openBtn.addEventListener('click', openOverlay);
+  cancelBtn.addEventListener('click', closeOverlay);
+  backdrop.addEventListener('click', closeOverlay);
+
+  keys.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      const action = btn.dataset.action;
+      if (key !== undefined) {
+        addDigit(key);
+      } else if (action === 'clear') {
+        clearPin();
+      } else if (action === 'backspace') {
+        backspace();
+      }
+    });
+  });
+
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  const hasPinError = {{ 'true' if pin_error else 'false' }};
+  if (hasPinError) {
+    openOverlay();
+  }
+})();
+</script>
+</html>
+
+<style>
+    :root{
+  /* === PARAMETRI PER 1080x720 LANDSCAPE === */
+  --screen-w: 1080px;     /* larghezza schermo */
+  --screen-h: 720px;      /* altezza schermo  */
+  --pad-x: 20px;          /* padding orizzontale */
+  --pad-y: 14px;          /* padding verticale   */
+
+  --header-h: 64px;       /* altezza header */
+  --footer-h: 96px;       /* altezza footer */
+  --gap: 14px;            /* gap griglia */
+
+  /* Bottoni principali (4) */
+  --btn-radius: 28px;
+  --btn-font: 36px;
+  --btn-line: 1.1;
+
+  /* Griglia 2x2 calcolata */
+  --grid-w: calc(var(--screen-w) - (2 * var(--pad-x)));
+  --grid-h: calc(var(--screen-h) - var(--header-h) - var(--footer-h) - (2 * var(--pad-y)));
+  --cell-w: calc((var(--grid-w) - var(--gap)) / 2);
+  --cell-h: calc((var(--grid-h) - var(--gap)) / 2);
+}
+
+html, body { width:100%; height:100%; }
+body {
+  display:flex; align-items:center; justify-content:center;
+  background:#0f172a; color:#e2e8f0; overflow:hidden;
+}
+
+/* Wrapper fisso 1080x720 */
+.screen{
+  width: var(--screen-w);
+  height: var(--screen-h);
+  background: #0f172a; /* slate-900 */
+  color: #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr var(--footer-h);
+}
+
+/* Header */
+.header{
+  padding: 8px var(--pad-x);
+  display: flex; align-items: center;
+}
+.title{
+  font-size: 16px; letter-spacing: .2em; font-weight: 600; color: #bae6fd;
+}
+
+/* Main area */
+.main{ padding: var(--pad-y) var(--pad-x); }
+.buttons-grid{
+  width: var(--grid-w);
+  height: var(--grid-h);
+  display: grid;
+  grid-template-columns: var(--cell-w) var(--cell-w);
+  grid-template-rows: var(--cell-h) var(--cell-h);
+  gap: var(--gap);
+}
+.btn-placeholder{ width: var(--cell-w); height: var(--cell-h); }
+
+/* Bottoni principali */
+.btn{
+  width: var(--cell-w);
+  height: var(--cell-h);
+  border-radius: var(--btn-radius);
+  display:flex; align-items:center; justify-content:center;
+  text-align:center;
+  font-size: var(--btn-font);
+  font-weight: 800;
+  line-height: var(--btn-line);
+  box-shadow: 0 8px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.2);
+}
+.btn-green{ background: rgba(136,212,120,.95); color:#0b3b2a; }
+.btn-blue { background: rgba(162,220,255,.95); color:#0b2a3b; }
+.btn-sand { background: rgba(210,200,150,.95); color:#3a2b0b; }
+.btn-ice  { background: rgba(200,224,224,.95); color:#0b2b2b; }
+
+/* Footer */
+.footer{
+  padding: 12px var(--pad-x);
+  display:flex; align-items:center; gap:12px;
+}
+.status{
+  flex:1;
+  height: 52px;
+  display:flex; align-items:center; padding: 0 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size: 18px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.badge{
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(170,220,210,.85);
+  color:#0a2e2e; font-weight:800;
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+  min-width: 160px; text-align: center;
+}
+.badge.warn{ background: rgba(210,170,170,.85); color:#3a1212; }
+
+.pin-form{ display:flex; align-items:center; gap:10px; }
+.pin-input{
+  border-radius:10px; padding:10px 12px; color:#0a1422; min-width: 160px;
+}
+.btn-operator{
+  border-radius:12px; padding:12px 16px; font-weight:800;
+  background: rgba(170,220,210,.85); color:#0a2e2e;
+}
+/* ====== Layout operatore compatto (no scroll) ====== */
+.op-main-no-scroll { overflow: hidden; padding-top: 6px; padding-bottom: 0; }
+
+.op-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr; /* 3 colonne affiancate */
+  gap: 10px;                           /* spazio tra pannelli */
+  height: calc(var(--screen-h) - var(--header-h) - var(--footer-h) - (2 * var(--pad-y)));
+}
+
+/* Pannelli compatti */
+.panel{ padding:20px; border-radius:10px; }
+.panel-title{ font-weight:700; margin-bottom:6px; font-size:15px; }
+.sub-title{ font-weight:600; margin-top:2px; margin-bottom:6px; font-size:13px; }
+
+.row{ display:flex; align-items:center; gap:10px; }
+.row.wrap{ flex-wrap:wrap; }
+.row.right{ justify-content:flex-end; }
+
+.mt4{ margin-top:4px; }
+.mt6{ margin-top:6px; }
+
+.op-label{ font-weight:600; }
+.op-label.small{ font-size:13px; }
+.op-label.tiny{ font-size:12px; }
+
+.btn-mini{
+  border-radius:10px; padding:10px 10px; background:#334155; font-weight:700; font-size:15px;margin-top:6px; margin-bottom:10px;
+}
+.btn-mini.ok{ background:#2a7bf6; }
+.btn-mini.danger{ background:#b13f3f; }
+.btn-mini.w-full{ width: 100%; }
+
+.rng{ width: 220px; }
+.rng-sm{ width: 160px; } /* slider più corto per farlo stare nella colonna */
+
+.statebox.tiny{
+  max-height: 100px; overflow:auto; font-size:11px; line-height:1.2;
+}
+
+.hidden {
+  display: none;
+}
+
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.pin-overlay-dialog {
+  position: relative;
+  background: #111;
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 320px;
+  max-width: 480px;
+  text-align: center;
+}
+
+.pin-overlay-title {
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+}
+
+.pin-error {
+  color: #ff6666;
+  margin-bottom: 8px;
+}
+
+.pin-dots {
+  font-size: 2rem;
+  letter-spacing: 0.5rem;
+  min-height: 2.4rem;
+  margin-bottom: 16px;
+}
+
+.pin-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pin-key {
+  font-size: 1.6rem;
+  padding: 16px 0;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.pin-key-action {
+  font-size: 1.2rem;
+}
+
+.pin-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pin-cancel,
+.pin-ok {
+  flex: 1;
+  padding: 10px 0;
+}
+
+.buttons-row-center {
+  margin-top: 1.5rem;   /* regola a gusto */
+  display: flex;
+  justify-content: center;
+}
+
+/* Aspetto dei pulsanti disabilitati (lezioni in corso / bloccate) */
+.btn:disabled {
+  opacity: 0.4;           /* li rende "sbiaditi" */
+  filter: grayscale(1);   /* desatura il colore */
+  cursor: default;        /* niente manina da link */
+  box-shadow: none;       /* opzionale: togli ombra se ne hai */
+  border-color: #666;      /* bordo più spento */
+}
+
+
+
+/* Se vuoi evitare che cambino colore al passaggio del mouse (desktop) */
+.btn:disabled:hover {
+  background-color: inherit;
+}
+
+/* (opzionale) se hai transizioni sui bottoni */
+.btn {
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+
+/* Area operatore
+.op-main{ overflow:auto; }
+.panel{
+  background: rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:12px; margin-bottom: 10px;
+}
+.panel-title{ font-weight:700; margin-bottom:8px; }
+.row{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+.row.col{ flex-direction:column; align-items:stretch; }
+.btn-mini{
+  border-radius:10px; padding:8px 12px; background:#334155; font-weight:700;
+}
+.btn-mini.ok{ background:#2a7bf6; }
+.btn-mini.danger{ background:#b13f3f; }
+.op-label{ font-weight:600; }
+.rng{ width: 260px; }
+.statebox{
+  background: rgba(0,0,0,.4);
+  padding: 10px; border-radius: 10px;
+  border:1px solid rgba(255,255,255,.12);
+  max-height: 180px; overflow:auto;
+}
+
+</style>
+
+
+

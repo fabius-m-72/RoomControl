@@ -1,0 +1,113 @@
+
+.tab-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--c-border, #ccc);
+  border-radius: 6px;
+  background: var(--c-bg, #8f8f8f);
+  font-weight: 600;
+}
+.tab-btn.tab-active {
+  background: var(--c-accent, #1a6bab);
+  border-color: var(--c-accent-b, #8ac3ff);
+}
+.tab-panel.hidden { display:none; }
+
+/* === DSP compatto === */
+.dsp-row {
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.dsp-channel {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+  border-right: 1px dashed rgba(148,163,184,0.4);
+}
+.dsp-row .dsp-channel:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.dsp-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dsp-row-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* label valore gain: bordo + larghezza fissa (~8 caratteri) */
+.dsp-label {
+  border: 1px solid var(--c-border, #ccc);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 10ch;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Pulsanti nel tab DSP più bassi per guadagnare spazio */
+#tab-dsp .btn-mini {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  min-height: 30px;
+  font-size: 0.8rem;
+}
+
+/* Toggle Used compatto */
+.dsp-used-btn {
+  min-width: 72px;
+  background: var(--c-accent, #696969);
+}
+
+.btn-mini.disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* Pianificazione Raspberry */
+.power-schedule-form {
+  border: 1px solid var(--c-border, #cbd5e1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(226, 232, 240, 0.25);
+}
+
+.input-time {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--c-border, #cbd5e1);
+  background: #354369;
+  font-weight: 600;
+}
+
+.weekday-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border, #cbd5e1);
+  background: #354369;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.weekday-chip input {
+  width: 16px;
+  height: 16px;
+}
+
+/* Nasconde gli elementi con la classe "hidden" (come faceva Tailwind) */
+.hidden {
+  display: none !important;
+}

@@ -1,0 +1,7 @@
+<!doctype html>
+<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>RoomCTL</title><script src='https://cdn.tailwindcss.com'></script>
+<link rel='stylesheet' href='/static/roomctl.css'></head>
+<body class='min-h-screen bg-slate-900 text-slate-100'>{% block content %}{% endblock %}
+<script>(function(){try{const proto=location.protocol==='https:'?'wss:':'ws:';const ws=new WebSocket(proto+'//'+location.host+'/ws');ws.onmessage=(ev)=>{try{const s=JSON.parse(ev.data||'{}');const el=document.getElementById('badge-input');if(!el)return;const inp=(s.projector&&s.projector.input)||s.projector_input||'—';const pwr=(s.projector&&s.projector.power===true)||s.projector_power===true;el.textContent='Input attivo: '+inp;el.className='badge '+(pwr?'ok':'warn');const st=document.getElementById('json-state');if(st){st.textContent=JSON.stringify(s,null,2);}}catch(e){}};}catch(e){}})();</script>
+</body></html>
