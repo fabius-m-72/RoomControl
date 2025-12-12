@@ -18,35 +18,40 @@ router = APIRouter()
 CONFIG_DEV=os.environ.get('ROOMCTL_DEVICES','/opt/roomctl/config/devices.yaml')
 
 def load_devices():
+ default_cfg = {
+                        'projector':{
+                        'host':'192.168.1.220',
+                        'port':4352,
+                        'password':'1234',
+                        'nic_warmup_s':12,
+                        'pjlink_timeout_s':8,
+                        'pjlink_retries':4,
+                        'post_power_on_delay_s':2},
+
+                  'dsp':{
+                        'host':'192.168.1.230',
+                        'port':4196,
+                        'addr':3,
+            'input': {'0':True,'1':False,'2':False,'3':False},
+            'output': {'0':True,'1':False,'2':False,'3':False, '4':True,'5':False,'6':False,'7':False}},
+
+                  'shelly1':{
+                        'base':'http://192.168.1.10',
+                        'ch1':0,
+                        'ch2':1},
+
+                  'shelly2':{
+                        'base':'http://192.168.1.11',
+                        'ch1':0,
+                        'ch2':1,
+            'inverti_corsa':False}}
  try:
   with open(CONFIG_DEV,'r',encoding='utf-8') as f: return yaml.safe_load(f) or {}
  except FileNotFoundError:
-  return {'projector':{
-			'host':'192.168.1.220',
-			'port':4352,
-			'password':'1234',
-			'nic_warmup_s':12,
-			'pjlink_timeout_s':8,
-			'pjlink_retries':4,
-			'post_power_on_delay_s':2},
-			
-		  'dsp':{
-			'host':'192.168.1.230',
-			'port':4196,
-			'addr':3,
-            'input': {'0':True,'1':False,'2':False,'3':False},
-            'output': {'0':True,'1':False,'2':False,'3':False, '4':True,'5':False,'6':False,'7':False}},
-			
-		  'shelly1':{
-			'base':'http://192.168.1.10',
-			'ch1':0,
-			'ch2':1},
-			
-		  'shelly2':{
-			'base':'http://192.168.1.11',
-			'ch1':0,
-			'ch2':1,
-            'inverti_corsa':False}}
+  return dict(default_cfg)
+ except (OSError, yaml.YAMLError) as exc:
+  log.error("Impossibile leggere la configurazione dispositivi: %s", exc)
+  return dict(default_cfg)
 
 cfg=load_devices()
 class TokenReq(BaseModel): token:str|None=None
@@ -283,8 +288,11 @@ async def dsp_used(body: DspUsedReq):
         raise HTTPException(status_code=400, detail="Canale non valido")
 
     # salva su devices.yaml
-    with open(CONFIG_DEV, 'w', encoding='utf-8') as f:
-        yaml.safe_dump(cfg_local, f)
+    try:
+        with open(CONFIG_DEV, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(cfg_local, f)
+    except (OSError, yaml.YAMLError) as exc:
+        raise HTTPException(status_code=500, detail=f"Impossibile salvare devices.yaml: {exc}")
 
     # aggiorna la cfg globale in memoria
     global cfg
@@ -365,8 +373,11 @@ async def shelly_invert(body: ShellyInvertReq):
  cfg_local = load_devices()
  shelly2_cfg = cfg_local.setdefault('shelly2', {})
  shelly2_cfg['inverti_corsa'] = bool(body.inverti_corsa)
- with open(CONFIG_DEV, 'w', encoding='utf-8') as f:
-     yaml.safe_dump(cfg_local, f)
+ try:
+     with open(CONFIG_DEV, 'w', encoding='utf-8') as f:
+         yaml.safe_dump(cfg_local, f)
+ except (OSError, yaml.YAMLError) as exc:
+     raise HTTPException(status_code=500, detail=f"Impossibile salvare devices.yaml: {exc}")
  global cfg
  cfg = cfg_local
  return {'ok': True, 'inverti_corsa': bool(body.inverti_corsa)}
