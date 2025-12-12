@@ -81,4 +81,12 @@ class PJLinkClient:
         m = re.search(r"POWR=(\d)", resp)
         return int(m.group(1)) if m else None
 
+    async def check_status(self) -> bool:
+        """Verifica la raggiungibilità del proiettore interrogando lo stato."""
+
+        try:
+            return (await self.get_power()) is not None
+        except Exception:
+            return False
+
 

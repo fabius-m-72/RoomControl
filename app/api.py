@@ -54,6 +54,37 @@ def load_devices():
   return dict(default_cfg)
 
 cfg=load_devices()
+
+def _set_state_message(msg: str):
+    state = get_public_state()
+    state["text"] = msg
+    set_public_state(state)
+    return state
+
+async def _ensure_shelly_online(cli, label: str):
+    checker = getattr(cli, "is_online", None)
+    online = True
+    if checker:
+        if asyncio.iscoroutinefunction(checker):
+            online = await checker()
+        else:
+            online = checker()
+    if not online:
+        _set_state_message(f"{label} non raggiungibile")
+        raise HTTPException(status_code=503, detail=f"{label} non raggiungibile")
+
+async def _get_dsp_or_error() -> DSP408Client:
+    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    if not await dsp.check_status():
+        _set_state_message("DSP non raggiungibile")
+        raise HTTPException(status_code=503, detail="DSP non raggiungibile")
+    return dsp
+
+async def _ensure_projector_online(pj: PJLinkClient):
+    if not await pj.check_status():
+        _set_state_message("Proiettore non raggiungibile")
+        raise HTTPException(status_code=503, detail="Proiettore non raggiungibile")
+
 class TokenReq(BaseModel): token:str|None=None
 class PowerReq(TokenReq): on:bool
 class InputReq(TokenReq): source:str
@@ -189,6 +220,7 @@ async def _power_sequence(on: bool):
     )
 
     shelly_main = ShellyHTTP(base=devices["shelly1"]["base"])
+    await _ensure_shelly_online(shelly_main, "Alimentazione")
     ch_main = devices["shelly1"]["ch1"]
 
     if on:
@@ -207,8 +239,9 @@ async def _power_sequence(on: bool):
             _ = await pj.power(True)
             #stato=get_public_state(); stato['text']='Proiettore -> ON'; set_public_state(stato)
         except Exception as e:
-            stato=get_public_state(); stato['text']='Errore accensione proiettore'; set_public_state(stato)
+            _set_state_message('Errore accensione proiettore')
             #log.exception("PJLink POWER ON error: %s", e)
+            return
 
         # 4) attesa stato ON (fino a 60 s per sicurezza)
         #await asyncio.sleep(30)
@@ -225,6 +258,7 @@ async def _power_sequence(on: bool):
             okp = await pj.power(False)
             #log.info("PJLink POWER OFF: %s", okp)
         except Exception as e:
+            _set_state_message('Errore spegnimento proiettore')
             log.exception("PJLink POWER OFF error: %s", e)
 
         # attesa cooldown a STANDBY (spesso serve)
@@ -245,6 +279,7 @@ async def projector_power(body: PowerBody, background: BackgroundTasks):
 @router.post('/projector/input')
 async def projector_input(body:InputReq):
  pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
+ await _ensure_projector_online(pj)
  ok=await pj.set_input(body.source)
  if not ok: raise HTTPException(500,'PJLink input failed')
  st=get_public_state(); st['projector']['input']=body.source.upper(); set_public_state(st)
@@ -257,11 +292,11 @@ async def dsp_mute(body: DspMuteReq):
     """
     Mute/unmute globale: usa DSP408Client.mute_all(on).
     """
-    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    dsp = await _get_dsp_or_error()
     # mappe input/output usate per escludere canali dal MUTE ALL
     used_in = (cfg.get("dsp") or {}).get("input", {}) or {}
     used_out = (cfg.get("dsp") or {}).get("output", {}) or {}
-    print("used in",used_in,"--used out ",used_out)	
+    print("used in",used_in,"--used out ",used_out)
     await dsp.mute_all(body.mute, used_inputs=used_in, used_outputs=used_out)
     #return {"ok": True, "mute": bool(body.mute)}
     return {"ok": True}
@@ -307,7 +342,7 @@ async def dsp_gain(body: DspStepReq):
     Step di gain (in dB) sul bus indicato (in_a, out0..3).
     delta viene usato solo come segno: >0 = +1 step, <0 = -1 step.
     """
-    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    dsp = await _get_dsp_or_error()
     sign = 1 if body.delta >= 0 else -1
     new_val = await dsp.apply_gain_delta(body.bus, sign)
     return {"ok": True, "bus": body.bus, "gain_db": new_val}
@@ -319,7 +354,7 @@ async def dsp_volume(body: DspStepReq):
     Step di volume (in dB) sul bus indicato (in_a, out0..3).
     Anche qui usiamo solo il segno di delta.
     """
-    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    dsp = await _get_dsp_or_error()
     sign = 1 if body.delta >= 0 else -1
     new_val = await dsp.apply_volume_delta(body.bus, sign)
     return {"ok": True, "bus": body.bus, "volume_db": new_val}
@@ -330,7 +365,7 @@ async def dsp_recall(body: DspRecallReq):
     """
     Richiama un preset del DSP (es. F00, U01, U02, U03).
     """
-    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    dsp = await _get_dsp_or_error()
     await dsp.recall(body.preset)
     return {"ok": True, "preset": body.preset}
 
@@ -341,7 +376,7 @@ async def dsp_state():
     Legge i livelli dal DSP e li restituisce già raggruppati per bus,
     in modo comodo per la template Jinja.
     """
-    dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
+    dsp = await _get_dsp_or_error()
     levels = await dsp.read_levels()
     # levels è del tipo {"gain": {"in_a": -3, ...}, "volume": {...}}
     gain_map = levels.get("gain", {})
@@ -390,12 +425,15 @@ async def shelly_set(sid:str,body:PowerReq):
 
  if ch==2:
      sh=ShellyHTTP_script(base)
+     await _ensure_shelly_online(sh, "Telo")
      ok=sh.shelly_pro2pm_cover(action='close', inverti_corsa=inverti_corsa)
  elif ch==3:
      sh = ShellyHTTP_script(base)
+     await _ensure_shelly_online(sh, "Telo")
      ok = sh.shelly_pro2pm_cover(action='open', inverti_corsa=inverti_corsa)
  else:
      sh=ShellyHTTP(base)
+     await _ensure_shelly_online(sh, "Alimentazione")
      ok=await sh.set_relay(ch,body.on)
  if not ok: raise HTTPException(500,'Shelly set failed')
  return {'ok':True}

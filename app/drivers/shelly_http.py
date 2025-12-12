@@ -45,6 +45,20 @@ class ShellyHTTP:
         ok2 = await self.set_relay(relay, False)
         return ok1 and ok2
 
+    async def is_online(self) -> bool:
+        """Verifica se il dispositivo Shelly risponde alle richieste RPC."""
+
+        url = f"{self.base}/rpc/Shelly.GetStatus"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as c:
+                r = await c.get(url)
+                return r.status_code == 200
+        except httpx.RequestError as exc:
+            logging.getLogger(__name__).error(
+                "Shelly %s non raggiungibile: %s", self.base, exc
+            )
+            return False
+
 class ShellyHTTP_script:
     """
     Driver HTTP minimale per Shelly Gen2 (RPC).
@@ -165,6 +179,19 @@ class ShellyHTTP_script:
         except ValueError:
             # se per qualche motivo non torna JSON
             return {'ok':True} #{"raw": resp.text}
+
+    def is_online(self) -> bool:
+        """Verifica se il dispositivo Shelly (script) risponde alle richieste RPC."""
+
+        url = f"{self.base}/rpc/Shelly.GetStatus"
+        try:
+            r = requests.get(url, timeout=self.timeout)
+            return r.status_code == 200
+        except requests.RequestException as exc:
+            logging.getLogger(__name__).error(
+                "Shelly script %s non raggiungibile: %s", self.base, exc
+            )
+            return False
 
 class ShellyCoverError(Exception):
     """Errore generico per comandi verso Shelly in modalità cover."""
