@@ -47,10 +47,29 @@ class RS232TCPClient:
 		s.settimeout(self.timeout)
 		self._sock = s
 
-	def close(self):
-		if self._sock:
-			try: self._sock.close()
-			finally: self._sock = None
+        def close(self):
+                if self._sock:
+                        try: self._sock.close()
+                        finally: self._sock = None
+
+        def check_connection(self) -> bool:
+                """Tenta una lettura rapida per verificare se il DSP è raggiungibile."""
+
+                try:
+                        self.connect()
+                        resp = self.send_command(
+                                self.CMD_GET_PRESET,
+                                0x00,
+                                0x00,
+                                0x00,
+                                answ_byte=1,
+                                expect_reply=True,
+                                expect_echo=False,
+                                reply_timeout=2.0,
+                        )
+                        return resp is not None
+                except Exception:
+                        return False
 
 	@staticmethod
 	def _build_packet(addr: int, cmd: int, d1: int, d2: int, d3: int) -> bytes:
@@ -273,23 +292,28 @@ class DSP408Client:
 		# Se “volume” nel tuo DSP è lo stesso valore del gain, riuso la stessa logica.
 		return await self.apply_gain_delta(bus, sign)
 
-	async def recall(self, preset: str) -> None:
-		"""
-		preset: 'F00' (factory) o 'U01'..'U03' (user).
-		"""
-		def _do():
+        async def recall(self, preset: str) -> None:
+                """
+                preset: 'F00' (factory) o 'U01'..'U03' (user).
+                """
+                def _do():
 			if preset == "F00":
 				self._cli.recall_preset(user=False, preset_index=0)
-			else:
-				idx = int(preset[1:])  # U01 -> 1
-				self._cli.recall_preset(user=True, preset_index=idx)
-		await asyncio.to_thread(_do)
+                        else:
+                                idx = int(preset[1:])  # U01 -> 1
+                                self._cli.recall_preset(user=True, preset_index=idx)
+                await asyncio.to_thread(_do)
 
-	async def read_levels(self) -> Dict[str, Dict[str, float]]:
-		def _do() -> Dict[str, Dict[str, float]]:
-			g: Dict[str,float] = {}
-			v: Dict[str,float] = {}
-			for bus, (is_out, ch) in self.bus_map.items():
+        async def check_status(self) -> bool:
+                """Controlla rapidamente se il DSP è online."""
+
+                return await asyncio.to_thread(self._cli.check_connection)
+
+        async def read_levels(self) -> Dict[str, Dict[str, float]]:
+                def _do() -> Dict[str, Dict[str, float]]:
+                        g: Dict[str,float] = {}
+                        v: Dict[str,float] = {}
+                        for bus, (is_out, ch) in self.bus_map.items():
 				val = self._cli.get_gain_db(is_output=is_out, channel=ch)
 				g[bus] = val
 				v[bus] = val
