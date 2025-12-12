@@ -61,6 +61,21 @@ def _set_state_message(msg: str):
     set_public_state(state)
     return state
 
+
+def _raise_device_error(device_name: str, exc: Exception | None = None, status: int = 503):
+    """Imposta il footer e propaga un errore HTTP legato a un dispositivo.
+
+    L'eccezione viene convertita in HTTPException per permettere alla UI di
+    mostrare un messaggio coerente, mantenendo nel footer il nome del
+    dispositivo che non risponde.
+    """
+
+    _set_state_message(f"{device_name} non risponde")
+    detail = f"{device_name} non risponde"
+    if exc:
+        detail = f"{detail}: {exc}"
+    raise HTTPException(status_code=status, detail=detail) from exc
+
 async def _ensure_shelly_online(cli, label: str):
     checker = getattr(cli, "is_online", None)
     online = True
@@ -226,9 +241,12 @@ async def _power_sequence(on: bool):
     if on:
         
         # 1) mains ON
-        ok = await shelly_main.set_relay(ch_main, True)
-        #log.info("Shelly mains ON: %s", ok)
-        #stato=get_public_state(); stato['text']='Alimentazione -> ON'; set_public_state(stato)
+        try:
+            ok = await shelly_main.set_relay(ch_main, True)
+        except Exception as exc:
+            _raise_device_error("Alimentazione", exc)
+        if not ok:
+            _raise_device_error("Alimentazione")
 
         # 2) attesa NIC
         #stato=get_public_state(); stato['text']='Alimentazione --> ON'; set_public_state(stato)
@@ -239,9 +257,7 @@ async def _power_sequence(on: bool):
             _ = await pj.power(True)
             #stato=get_public_state(); stato['text']='Proiettore -> ON'; set_public_state(stato)
         except Exception as e:
-            _set_state_message('Errore accensione proiettore')
-            #log.exception("PJLink POWER ON error: %s", e)
-            return
+            _raise_device_error("Proiettore", e)
 
         # 4) attesa stato ON (fino a 60 s per sicurezza)
         #await asyncio.sleep(30)
@@ -258,11 +274,12 @@ async def _power_sequence(on: bool):
             okp = await pj.power(False)
             #log.info("PJLink POWER OFF: %s", okp)
         except Exception as e:
-            _set_state_message('Errore spegnimento proiettore')
-            log.exception("PJLink POWER OFF error: %s", e)
+            _raise_device_error("Proiettore", e)
 
         # attesa cooldown a STANDBY (spesso serve)
-        off = await _wait_power_state(pj, desired=0, budget_s=90)
+        ready, _ = await _wait_power_state(pj, desired=0, budget_s=90)
+        if not ready:
+            _raise_device_error("Proiettore")
         #log.info("Projector OFF ready: %s", off)
 
         # opzionale: spegnere mains dopo cooldown
@@ -443,10 +460,22 @@ async def scene_avvio_semplice():
  #stato=get_public_state(); stato['text']='Avvio lezione semplice...'; set_public_state(stato)
  base,ch=_map_shelly('shelly1_ch2')
  sh=ShellyHTTP(base)
- await sh.set_relay(ch,True)
+ await _ensure_shelly_online(sh, "Alimentazione DSP")
+ try:
+     ok = await sh.set_relay(ch,True)
+ except Exception as exc:
+     _raise_device_error("Alimentazione DSP", exc)
+ else:
+     if not ok:
+         _raise_device_error("Alimentazione DSP")
+
  await asyncio.sleep(6)
- dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))
- await dsp.mute_all(False)
+
+ dsp=await _get_dsp_or_error()
+ try:
+     await dsp.mute_all(False)
+ except Exception as exc:
+     _raise_device_error("DSP", exc)
  #await dsp.set_master_db(-20.0)
  return {'ok':True}
 
@@ -455,41 +484,75 @@ async def scene_avvio_proiettore(payload:dict|None=None):
  source=(payload or {}).get('source') or 'HDMI1'
  base,ch=_map_shelly('shelly1_ch2')
  sh=ShellyHTTP(base)
- await sh.set_relay(ch,True)
+ await _ensure_shelly_online(sh, "Alimentazione DSP")
+ try:
+     ok = await sh.set_relay(ch,True)
+ except Exception as exc:
+     _raise_device_error("Alimentazione DSP", exc)
+ else:
+     if not ok:
+         _raise_device_error("Alimentazione DSP")
  await asyncio.sleep(6)
- dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))
- await dsp.mute_all(False)
+ dsp=await _get_dsp_or_error()
+ try:
+     await dsp.mute_all(False)
+ except Exception as exc:
+     _raise_device_error("DSP", exc)
  pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
  #base,ch=cfg['shelly2']['base'],cfg['shelly2']['ch1']
  sh=ShellyHTTP_script(cfg['shelly2']['base'])
- sh.shelly_pro2pm_cover(action='close', inverti_corsa=_is_shelly2_inverted())
+ await _ensure_shelly_online(sh, "Telo")
+ try:
+     sh.shelly_pro2pm_cover(action='close', inverti_corsa=_is_shelly2_inverted())
+ except Exception as exc:
+     _raise_device_error("Telo", exc)
  await _power_sequence(True)
  #ready,pw_st = await _wait_power_state(pj, desired=1, budget_s=120)
  await asyncio.sleep(20)
  print("set source")
- await pj.set_input(source)
+ await _ensure_projector_online(pj)
+ try:
+     await pj.set_input(source)
+ except Exception as exc:
+     _raise_device_error("Proiettore", exc)
  st=get_public_state(); st['projector']['power']=True; st['projector']['input']=source.upper(); set_public_state(st)
  return {'ok':True}
 
 @router.post('/scene/spegni_aula')
 async def scene_spegni_aula():
- #_=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None)) #crea istanza proiettore
+    #_=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None)) #crea istanza proiettore
 
- dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))  #crea istanza DSP
- await dsp.mute_all(True)		#disabilita ingresso A e uscite 0-3
- await asyncio.sleep(6)
- base,ch=cfg['shelly1']['base'],cfg['shelly1']['ch1']
- sh1 = ShellyHTTP(base)  # crea istanza shelly1
- await sh1.set_relay(cfg['shelly1']['ch2'], False)  # disattiva alimentazione per DSP
- #base,ch=cfg['shelly2']['base'],cfg['shelly2']['ch2']  #prende i parametri di Shelly2, 'telo su/giu'
- st = get_public_state()
- if st['current_lesson'] != 'semplice':
-    await _power_sequence(False)		#avvia sequenza di off
-    sh2 = ShellyHTTP_script(cfg['shelly2']['base'])
-    sh2.shelly_pro2pm_cover(action='open', inverti_corsa=_is_shelly2_inverted())
-    sh1=ShellyHTTP_script(base) #crea istanza shelly1
-    sh1.projct_off_main()			#disttiva alimentazione per proiettore
- st=get_public_state(); st['projector']['power']=False;st['text']="Lezione terminata..."; set_public_state(st)  #aggiorna stato
- return {'ok':True}
+    dsp=await _get_dsp_or_error()  #crea istanza DSP
+    try:
+        await dsp.mute_all(True)               #disabilita ingresso A e uscite 0-3
+    except Exception as exc:
+        _raise_device_error("DSP", exc)
+    await asyncio.sleep(6)
+    base,ch=cfg['shelly1']['base'],cfg['shelly1']['ch1']
+    sh1 = ShellyHTTP(base)  # crea istanza shelly1
+    await _ensure_shelly_online(sh1, "Alimentazione DSP")
+    try:
+        ok = await sh1.set_relay(cfg['shelly1']['ch2'], False)  # disattiva alimentazione per DSP
+    except Exception as exc:
+        _raise_device_error("Alimentazione DSP", exc)
+    else:
+        if not ok:
+            _raise_device_error("Alimentazione DSP")
+    #base,ch=cfg['shelly2']['base'],cfg['shelly2']['ch2']  #prende i parametri di Shelly2, 'telo su/giu'
+    st = get_public_state()
+    if st['current_lesson'] != 'semplice':
+        await _power_sequence(False)                #avvia sequenza di off
+        sh2 = ShellyHTTP_script(cfg['shelly2']['base'])
+        await _ensure_shelly_online(sh2, "Telo")
+        try:
+            sh2.shelly_pro2pm_cover(action='open', inverti_corsa=_is_shelly2_inverted())
+        except Exception as exc:
+            _raise_device_error("Telo", exc)
+        sh1=ShellyHTTP_script(base) #crea istanza shelly1
+        await _ensure_shelly_online(sh1, "Alimentazione")
+        if not sh1.projct_off_main():
+            _raise_device_error("Alimentazione")                       #disttiva alimentazione per proiettore
+    st=get_public_state(); st['projector']['power']=False;st['text']="Lezione terminata..."; set_public_state(st)  #aggiorna stato
+    return {'ok':True}
 
 
