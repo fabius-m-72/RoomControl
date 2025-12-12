@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Request,Depends,Form
+from fastapi import APIRouter,Request,Depends,Form,HTTPException
 from fastapi.responses import HTMLResponse,RedirectResponse,JSONResponse
 from fastapi.templating import Jinja2Templates
 import httpx,os,asyncio,yaml
@@ -15,8 +15,12 @@ def _load_ui():
  except Exception: return {}
 
 def _save_ui(d):
- os.makedirs(os.path.dirname(UI_CONFIG),exist_ok=True)
- with open(UI_CONFIG,'w',encoding='utf-8') as f: yaml.safe_dump(d,f)
+ try:
+  os.makedirs(os.path.dirname(UI_CONFIG),exist_ok=True)
+  with open(UI_CONFIG,'w',encoding='utf-8') as f:
+   yaml.safe_dump(d,f)
+ except Exception as exc:
+  raise HTTPException(status_code=500, detail=f"Impossibile salvare la configurazione UI: {exc}")
 
 def _get_show_combined()->bool: return bool(_load_ui().get('show_combined',True))
 

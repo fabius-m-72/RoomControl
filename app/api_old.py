@@ -9,10 +9,13 @@ from app.drivers.dsp408 import DSP408Client
 CONFIG_DEV=os.environ.get('ROOMCTL_DEVICES','/opt/roomctl/config/devices.yaml')
 
 def load_devices():
+ default_cfg = {'projector':{'host':'192.168.1.20','password':''},'dsp':{'host':'192.168.1.40','port':8899},'shelly1':{'base':'http://192.168.1.30','ch1':1,'ch2':2},'shelly2':{'base':'http://192.168.1.31','ch1':1,'ch2':2}}
  try:
   with open(CONFIG_DEV,'r',encoding='utf-8') as f: return yaml.safe_load(f) or {}
  except FileNotFoundError:
-  return {'projector':{'host':'192.168.1.20','password':''},'dsp':{'host':'192.168.1.40','port':8899},'shelly1':{'base':'http://192.168.1.30','ch1':1,'ch2':2},'shelly2':{'base':'http://192.168.1.31','ch1':1,'ch2':2}}
+  return dict(default_cfg)
+ except (OSError, yaml.YAMLError) as exc:
+  raise HTTPException(status_code=500, detail=f"Impossibile leggere devices.yaml: {exc}")
 
 cfg=load_devices(); router=APIRouter()
 class TokenReq(BaseModel): token:str|None=None

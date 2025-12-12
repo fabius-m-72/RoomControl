@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import re
 import yaml
+import logging
 
 DEFAULT_SCHEDULE = {
     "on_time": "07:30",
@@ -16,6 +17,8 @@ VALID_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 POWER_SCHEDULE_PATH = Path(
     os.environ.get("ROOMCTL_POWER_SCHEDULE", "/opt/roomctl/config/power_schedule.yaml")
 )
+
+log = logging.getLogger(__name__)
 
 
 def _normalize_time(value: str) -> str:
@@ -61,15 +64,22 @@ def load_power_schedule() -> dict:
     path = POWER_SCHEDULE_PATH
     if not path.is_file():
         return dict(DEFAULT_SCHEDULE)
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        log.error("Impossibile leggere la pianificazione %s: %s", path, exc)
+        return dict(DEFAULT_SCHEDULE)
     return _normalize_schedule(data)
 
 
 def save_power_schedule(schedule: dict) -> dict:
     normalized = _normalize_schedule(schedule)
     path = POWER_SCHEDULE_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(normalized, f, allow_unicode=True)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as f:
+            yaml.safe_dump(normalized, f, allow_unicode=True)
+    except (OSError, yaml.YAMLError) as exc:
+        raise ValueError(f"Impossibile salvare la pianificazione: {exc}") from exc
     return normalized

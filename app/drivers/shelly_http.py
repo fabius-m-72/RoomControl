@@ -4,6 +4,7 @@ import asyncio
 from typing import Union
 import httpx
 import requests
+import logging
 
 class ShellyHTTP:
     """
@@ -24,9 +25,13 @@ class ShellyHTTP:
         """Accendi/Spegni canale: /rpc/Switch.Set {id, on}"""
         url = f"{self.base}/rpc/Switch.Set"
         payload = {"id": int(relay), "on": bool(on)}
-        async with httpx.AsyncClient(timeout=self.timeout) as c:
-            r = await c.post(url, json=payload)
-            return r.status_code == 200
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as c:
+                r = await c.post(url, json=payload)
+                return r.status_code == 200
+        except httpx.RequestError as exc:
+            logging.getLogger(__name__).error("Errore comando Shelly %s: %s", url, exc)
+            return False
 
 
 
@@ -58,8 +63,12 @@ class ShellyHTTP_script:
     def projct_off_main(self) -> bool:
         """Spegnimento ritardato proiettore http://IP_DEL_SHELLY/rpc/Script.Start?id=1"""
         url = "http://192.168.1.10/rpc/Script.Start?id=1"
-        r =  requests.get(url, timeout=self.timeout)
-        return r.status_code == 200
+        try:
+            r =  requests.get(url, timeout=self.timeout)
+            return r.status_code == 200
+        except requests.RequestException as exc:
+            logging.getLogger(__name__).error("Errore comando Shelly script verso %s: %s", url, exc)
+            return False
 
     def shelly_pro2pm_cover(self,
         ip: str='192.168.1.11',

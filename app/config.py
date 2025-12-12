@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import yaml
+import logging
 
 # Percorso della YAML (puoi cambiarlo con env ROOMCTL_CONFIG)
 CONFIG_PATH = Path(os.environ.get("ROOMCTL_CONFIG", "/opt/roomctl/config/devices.yaml"))
@@ -30,6 +31,8 @@ DEFAULT_DEVICES: dict = {
     },
 }
 
+log = logging.getLogger(__name__)
+
 def _deep_merge(base: dict, override: dict) -> dict:
     out = dict(base)
     for k, v in (override or {}).items():
@@ -39,13 +42,19 @@ def _deep_merge(base: dict, override: dict) -> dict:
             out[k] = v
     return out
 
+
 def _load_yaml(path: Path) -> dict:
     if not path.is_file():
         return {}
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        log.error("Impossibile leggere config YAML %s: %s", path, exc)
+        return {}
     if not isinstance(data, dict):
-        raise ValueError(f"Config YAML non valida: {path}")
+        log.error("Config YAML non valida: %s", path)
+        return {}
     return data
 
 # Carica YAML se esiste e fai il merge con i default
