@@ -224,10 +224,29 @@ async def _power_sequence(on: bool):
         # ok = await shelly_main.set_relay(ch_main, False)
         #log.info("Shelly mains OFF: %s", ok)
 
+
+async def _power_sequence_background(on: bool):
+    """Esegue la sequenza di accensione/spegnimento senza propagare eccezioni.
+
+    Quando viene usato come task in background la risposta HTTP è già stata
+    inviata: sollevare HTTPException qui genera un errore runtime. Per questo
+    motivo intercettiamo gli errori e ci limitiamo a loggarli e aggiornare lo
+    stato pubblico con un messaggio sintetico.
+    """
+
+    try:
+        await _power_sequence(on)
+    except HTTPException as exc:
+        log.warning("Projector power background failed: %s", exc)
+        stato = get_public_state(); stato['text'] = 'Errore alimentazione proiettore'; set_public_state(stato)
+    except Exception as exc:  # pragma: no cover - salvaguardia generica
+        log.exception("Unexpected projector power background error")
+        stato = get_public_state(); stato['text'] = 'Errore alimentazione proiettore'; set_public_state(stato)
+
 @router.post("/projector/power")
 async def projector_power(body: PowerBody, background: BackgroundTasks):
     # NON blocchiamo la richiesta: lanciamo un task e rispondiamo 202
-    background.add_task(_power_sequence, body.on)
+    background.add_task(_power_sequence_background, body.on)
     return {"accepted": True, "on": body.on}
 
 
