@@ -187,14 +187,16 @@ async def _power_sequence(on: bool):
     ch_main = devices["shelly1"]["ch1"]
 
     if on:
-        
-        # 1) mains ON
-        ok = await shelly_main.set_relay(ch_main, True)
-        #log.info("Shelly mains ON: %s", ok)
-        #stato=get_public_state(); stato['text']='Alimentazione -> ON'; set_public_state(stato)
 
-        # 2) attesa NIC
-        #stato=get_public_state(); stato['text']='Alimentazione --> ON'; set_public_state(stato)
+        # 1) mains ON
+        try:
+            ok = await shelly_main.set_relay(ch_main, True)
+        except Exception as exc:
+            stato=get_public_state(); stato['text']='Errore alimentazione proiettore'; set_public_state(stato)
+            raise HTTPException(status_code=502, detail=f"Mancata accensione alimentazione principale: {exc}") from exc
+        if not ok:
+            raise HTTPException(status_code=502, detail="Shelly non ha confermato l'accensione")
+
         await asyncio.sleep(nic_warmup)
 
         # 3) POWER ON via PJLink
@@ -203,16 +205,7 @@ async def _power_sequence(on: bool):
             #stato=get_public_state(); stato['text']='Proiettore -> ON'; set_public_state(stato)
         except Exception as e:
             stato=get_public_state(); stato['text']='Errore accensione proiettore'; set_public_state(stato)
-            #log.exception("PJLink POWER ON error: %s", e)
-
-        # 4) attesa stato ON (fino a 60 s per sicurezza)
-        #await asyncio.sleep(30)
-        #try:
-        #    stato=get_public_state(); stato['text']='Warm-up proiettore...'; set_public_state(stato)
-        #    ready,pw_st = await _wait_power_state(pj, desired=1, budget_s=120)
-        #except Exception:
-        #    stato=get_public_state(); stato['text']=f"Anomalia stato proiettore: {power_state[pw_st]}"; set_public_state(stato)
-        #log.info("Projector ON ready: %s", ready)
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-on fallito: {e}") from e
 
     else:
         # POWER OFF
@@ -221,6 +214,7 @@ async def _power_sequence(on: bool):
             #log.info("PJLink POWER OFF: %s", okp)
         except Exception as e:
             log.exception("PJLink POWER OFF error: %s", e)
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-off fallito: {e}") from e
 
         # attesa cooldown a STANDBY (spesso serve)
         off = await _wait_power_state(pj, desired=0, budget_s=90)
@@ -239,11 +233,15 @@ async def projector_power(body: PowerBody, background: BackgroundTasks):
 
 @router.post('/projector/input')
 async def projector_input(body:InputReq):
- pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
- ok=await pj.set_input(body.source)
- if not ok: raise HTTPException(500,'PJLink input failed')
- st=get_public_state(); st['projector']['input']=body.source.upper(); set_public_state(st)
- return {'ok':True}
+    pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
+    try:
+        ok=await pj.set_input(body.source)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Impossibile cambiare sorgente PJLink: {exc}") from exc
+    if not ok:
+        raise HTTPException(500,'PJLink input failed')
+    st=get_public_state(); st['projector']['input']=body.source.upper(); set_public_state(st)
+    return {'ok':True}
 
 # ================== DSP408 ==================
 
@@ -256,8 +254,11 @@ async def dsp_mute(body: DspMuteReq):
     # mappe input/output usate per escludere canali dal MUTE ALL
     used_in = (cfg.get("dsp") or {}).get("input", {}) or {}
     used_out = (cfg.get("dsp") or {}).get("output", {}) or {}
-    print("used in",used_in,"--used out ",used_out)	
-    await dsp.mute_all(body.mute, used_inputs=used_in, used_outputs=used_out)
+    print("used in",used_in,"--used out ",used_out)
+    try:
+        await dsp.mute_all(body.mute, used_inputs=used_in, used_outputs=used_out)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"DSP non raggiungibile per mute: {exc}") from exc
     #return {"ok": True, "mute": bool(body.mute)}
     return {"ok": True}
 
@@ -301,7 +302,10 @@ async def dsp_gain(body: DspStepReq):
     """
     dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
     sign = 1 if body.delta >= 0 else -1
-    new_val = await dsp.apply_gain_delta(body.bus, sign)
+    try:
+        new_val = await dsp.apply_gain_delta(body.bus, sign)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"DSP non raggiungibile per gain: {exc}") from exc
     return {"ok": True, "bus": body.bus, "gain_db": new_val}
 
 
@@ -313,7 +317,10 @@ async def dsp_volume(body: DspStepReq):
     """
     dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
     sign = 1 if body.delta >= 0 else -1
-    new_val = await dsp.apply_volume_delta(body.bus, sign)
+    try:
+        new_val = await dsp.apply_volume_delta(body.bus, sign)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"DSP non raggiungibile per volume: {exc}") from exc
     return {"ok": True, "bus": body.bus, "volume_db": new_val}
 
 
@@ -323,7 +330,10 @@ async def dsp_recall(body: DspRecallReq):
     Richiama un preset del DSP (es. F00, U01, U02, U03).
     """
     dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
-    await dsp.recall(body.preset)
+    try:
+        await dsp.recall(body.preset)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"DSP non raggiungibile per preset: {exc}") from exc
     return {"ok": True, "preset": body.preset}
 
 
@@ -334,7 +344,10 @@ async def dsp_state():
     in modo comodo per la template Jinja.
     """
     dsp = DSP408Client(cfg["dsp"]["host"], int(cfg["dsp"]["port"]))
-    levels = await dsp.read_levels()
+    try:
+        levels = await dsp.read_levels()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"DSP non raggiungibile per lettura livelli: {exc}") from exc
     # levels è del tipo {"gain": {"in_a": -3, ...}, "volume": {...}}
     gain_map = levels.get("gain", {})
     vol_map = levels.get("volume", {})
@@ -379,13 +392,22 @@ async def shelly_set(sid:str,body:PowerReq):
 
  if ch==2:
      sh=ShellyHTTP_script(base)
-     ok=sh.shelly_pro2pm_cover(action='close', inverti_corsa=inverti_corsa)
+     try:
+         ok=sh.shelly_pro2pm_cover(action='close', inverti_corsa=inverti_corsa)
+     except Exception as exc:
+         raise HTTPException(status_code=502, detail=f"Shelly cover giù non raggiungibile: {exc}") from exc
  elif ch==3:
      sh = ShellyHTTP_script(base)
-     ok = sh.shelly_pro2pm_cover(action='open', inverti_corsa=inverti_corsa)
+     try:
+         ok = sh.shelly_pro2pm_cover(action='open', inverti_corsa=inverti_corsa)
+     except Exception as exc:
+         raise HTTPException(status_code=502, detail=f"Shelly cover su non raggiungibile: {exc}") from exc
  else:
      sh=ShellyHTTP(base)
-     ok=await sh.set_relay(ch,body.on)
+     try:
+         ok=await sh.set_relay(ch,body.on)
+     except Exception as exc:
+         raise HTTPException(status_code=502, detail=f"Shelly non raggiungibile: {exc}") from exc
  if not ok: raise HTTPException(500,'Shelly set failed')
  return {'ok':True}
 
@@ -394,10 +416,18 @@ async def scene_avvio_semplice():
  #stato=get_public_state(); stato['text']='Avvio lezione semplice...'; set_public_state(stato)
  base,ch=_map_shelly('shelly1_ch2')
  sh=ShellyHTTP(base)
- await sh.set_relay(ch,True)
+ try:
+     ok = await sh.set_relay(ch,True)
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"Shelly DSP non raggiungibile: {exc}") from exc
+ if not ok:
+     raise HTTPException(status_code=502, detail="Accensione DSP non confermata")
  await asyncio.sleep(6)
  dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))
- await dsp.mute_all(False)
+ try:
+     await dsp.mute_all(False)
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"DSP non raggiungibile durante avvio semplice: {exc}") from exc
  #await dsp.set_master_db(-20.0)
  return {'ok':True}
 
@@ -406,19 +436,32 @@ async def scene_avvio_proiettore(payload:dict|None=None):
  source=(payload or {}).get('source') or 'HDMI1'
  base,ch=_map_shelly('shelly1_ch2')
  sh=ShellyHTTP(base)
- await sh.set_relay(ch,True)
+ try:
+     ok = await sh.set_relay(ch,True)
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"Shelly DSP non raggiungibile: {exc}") from exc
+ if not ok:
+     raise HTTPException(status_code=502, detail="Accensione DSP non confermata")
  await asyncio.sleep(6)
  dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))
- await dsp.mute_all(False)
+ try:
+     await dsp.mute_all(False)
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"DSP non raggiungibile durante avvio proiettore: {exc}") from exc
  pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
  #base,ch=cfg['shelly2']['base'],cfg['shelly2']['ch1']
  sh=ShellyHTTP_script(cfg['shelly2']['base'])
- sh.shelly_pro2pm_cover(action='close', inverti_corsa=_is_shelly2_inverted())
+ try:
+     sh.shelly_pro2pm_cover(action='close', inverti_corsa=_is_shelly2_inverted())
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"Comando telo non riuscito: {exc}") from exc
  await _power_sequence(True)
- #ready,pw_st = await _wait_power_state(pj, desired=1, budget_s=120)
  await asyncio.sleep(20)
  print("set source")
- await pj.set_input(source)
+ try:
+     await pj.set_input(source)
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"Cambio sorgente PJLink fallito: {exc}") from exc
  st=get_public_state(); st['projector']['power']=True; st['projector']['input']=source.upper(); set_public_state(st)
  return {'ok':True}
 
@@ -427,19 +470,31 @@ async def scene_spegni_aula():
  #_=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None)) #crea istanza proiettore
 
  dsp=DSP408Client(cfg['dsp']['host'],int(cfg['dsp']['port']))  #crea istanza DSP
- await dsp.mute_all(True)		#disabilita ingresso A e uscite 0-3
+ try:
+     await dsp.mute_all(True)               #disabilita ingresso A e uscite 0-3
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"DSP non raggiungibile durante spegnimento: {exc}") from exc
  await asyncio.sleep(6)
  base,ch=cfg['shelly1']['base'],cfg['shelly1']['ch1']
  sh1 = ShellyHTTP(base)  # crea istanza shelly1
- await sh1.set_relay(cfg['shelly1']['ch2'], False)  # disattiva alimentazione per DSP
+ try:
+     await sh1.set_relay(cfg['shelly1']['ch2'], False)  # disattiva alimentazione per DSP
+ except Exception as exc:
+     raise HTTPException(status_code=502, detail=f"Shelly DSP non raggiungibile in spegnimento: {exc}") from exc
  #base,ch=cfg['shelly2']['base'],cfg['shelly2']['ch2']  #prende i parametri di Shelly2, 'telo su/giu'
  st = get_public_state()
  if st['current_lesson'] != 'semplice':
-    await _power_sequence(False)		#avvia sequenza di off
+    await _power_sequence(False)                #avvia sequenza di off
     sh2 = ShellyHTTP_script(cfg['shelly2']['base'])
-    sh2.shelly_pro2pm_cover(action='open', inverti_corsa=_is_shelly2_inverted())
+    try:
+        sh2.shelly_pro2pm_cover(action='open', inverti_corsa=_is_shelly2_inverted())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Comando telo in apertura non riuscito: {exc}") from exc
     sh1=ShellyHTTP_script(base) #crea istanza shelly1
-    sh1.projct_off_main()			#disttiva alimentazione per proiettore
+    try:
+        sh1.projct_off_main()                       #disttiva alimentazione per proiettore
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Shelly principale non raggiungibile per spegnimento: {exc}") from exc
  st=get_public_state(); st['projector']['power']=False;st['text']="Lezione terminata..."; set_public_state(st)  #aggiorna stato
  return {'ok':True}
 

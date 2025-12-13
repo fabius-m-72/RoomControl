@@ -123,6 +123,33 @@ def _set_state_text(message: str) -> dict:
     set_public_state(state)
     return state
 
+
+async def _safe_post(
+    url: str,
+    payload: dict | None,
+    error_text: str,
+    *,
+    redirect: str = "/",
+    state: dict | None = None,
+):
+    """Invia un comando al backend intercettando errori di rete/dispositivo.
+
+    In caso di errore aggiorna lo stato pubblico con un messaggio breve senza
+    dettagli tecnici e torna subito al redirect richiesto.
+    """
+
+    state = state or get_public_state()
+    try:
+        await _post(url, payload)
+    except HTTPException:
+        _set_state_text(error_text)
+        return RedirectResponse(url=redirect, status_code=303)
+    except Exception:
+        _set_state_text(error_text)
+        return RedirectResponse(url=redirect, status_code=303)
+
+    return None
+
 @router.get('/', response_class=HTMLResponse)
 async def home(req: Request, pin_error: bool = False):
     state = get_public_state()
@@ -139,11 +166,14 @@ async def home(req: Request, pin_error: bool = False):
 @router.post('/ui/scene/avvio_semplice')
 async def ui_avvio_semplice():
     state = _set_state_text("Avvio lezione semplice in corso…")
-    try:
-        _ = await _post(f"{ROOMCTL_BASE}/api/scene/avvio_semplice", {})
-    except HTTPException as exc:
-        _set_state_text(f"Errore avvio lezione semplice: {exc.detail}")
-        return RedirectResponse(url="/", status_code=303)
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/scene/avvio_semplice",
+        {},
+        "Errore avvio lezione semplice",
+        state=state,
+    )
+    if error_resp:
+        return error_resp
 
     state["text"] = "Avviata lezione solo audio"
     state["current_lesson"] = "semplice"
@@ -154,11 +184,14 @@ async def ui_avvio_semplice():
 @router.post('/ui/scene/avvio_video')
 async def ui_avvio_video():
     state = _set_state_text("Avvio lezione video in corso…")
-    try:
-        _ = await _post(f"{ROOMCTL_BASE}/api/scene/avvio_proiettore", {})
-    except HTTPException as exc:
-        _set_state_text(f"Errore avvio lezione video: {exc.detail}")
-        return RedirectResponse(url="/", status_code=303)
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/scene/avvio_proiettore",
+        {},
+        "Errore avvio lezione video",
+        state=state,
+    )
+    if error_resp:
+        return error_resp
 
     state["text"] = "Lezione video avviata"
     state["current_lesson"] = "video"
@@ -169,14 +202,14 @@ async def ui_avvio_video():
 @router.post('/ui/scene/avvio_video_combinata')
 async def ui_avvio_video_combinata():
     state = _set_state_text("Avvio lezione video combinata in corso…")
-    try:
-        _ = await _post(
-            f"{ROOMCTL_BASE}/api/scene/avvio_proiettore",
-            {"source": "HDMI2"},
-        )
-    except HTTPException as exc:
-        _set_state_text(f"Errore avvio lezione combinata: {exc.detail}")
-        return RedirectResponse(url="/", status_code=303)
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/scene/avvio_proiettore",
+        {"source": "HDMI2"},
+        "Errore avvio lezione combinata",
+        state=state,
+    )
+    if error_resp:
+        return error_resp
 
     state["text"] = "Lezione video combinata avviata"
     state["current_lesson"] = "combinata"
@@ -187,11 +220,11 @@ async def ui_avvio_video_combinata():
 @router.post('/ui/scene/spegni_aula')
 async def ui_spegni_aula():
     state = _set_state_text("Arresto lezione e spegnimento aula in corso…")
-    try:
-        _ = await _post(f"{ROOMCTL_BASE}/api/scene/spegni_aula", {})
-    except HTTPException as exc:
-        _set_state_text(f"Errore spegnimento aula: {exc.detail}")
-        return RedirectResponse(url="/", status_code=303)
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/scene/spegni_aula", {}, "Errore spegnimento aula", state=state
+    )
+    if error_resp:
+        return error_resp
 
     state["text"] = "Aula spenta: sistema pronto"
     # nessuna lezione attiva
@@ -263,16 +296,39 @@ async def op_toggle_combined(value:bool=Form(...),_=Depends(require_operator)):
 
 @router.post('/operator/projector/power')
 async def op_proj_power(on:bool=Form(...),_=Depends(require_operator)):
- await _post(f"{ROOMCTL_BASE}/api/projector/power",{'on':bool(on)}); return RedirectResponse('/operator',status_code=303)
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/projector/power",
+        {'on': bool(on)},
+        "Errore comando alimentazione proiettore",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
+    return RedirectResponse('/operator',status_code=303)
 
 @router.post('/operator/projector/input')
 async def op_proj_input(source:str=Form(...),_=Depends(require_operator)):
- await _post(f"{ROOMCTL_BASE}/api/projector/input",{'source':source}); return RedirectResponse('/operator',status_code=303)
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/projector/input",
+        {'source': source},
+        "Errore cambio sorgente proiettore",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
+    return RedirectResponse('/operator',status_code=303)
 
 @router.post("/operator/dsp/mute_all")
 async def op_dsp_mute_all( on: bool = Form(...), _=Depends(require_operator),):
     # operator.html usa name="on", ma l'API vuole "mute"
-    await _post(f"{ROOMCTL_BASE}/api/dsp/mute", {"mute": bool(on)})
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/mute",
+        {"mute": bool(on)},
+        "Errore comando mute DSP",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
     return RedirectResponse("/operator", status_code=303)
 
 @router.post("/operator/dsp/used")
@@ -292,10 +348,14 @@ async def op_dsp_used(req: Request, _=Depends(require_operator)):
 
     if channel is not None and new_val is not None:
         used = str(new_val).lower() in ("true", "1", "on", "yes")
-        await _post(
+        resp = await _safe_post(
             f"{ROOMCTL_BASE}/api/dsp/used",
             {"channel": channel, "used": used},
+            "Errore aggiornamento canali DSP",
+            redirect="/operator",
         )
+        if resp:
+            return resp
 
     return RedirectResponse("/operator", status_code=303)
 
@@ -309,10 +369,14 @@ async def op_dsp_gain(
     """
     Handler per i pulsanti GAIN +/- (bus = in_a, out0..3).
     """
-    await _post(
+    resp = await _safe_post(
         f"{ROOMCTL_BASE}/api/dsp/gain",
         {"bus": bus, "delta": int(delta)},
+        "Errore regolazione gain DSP",
+        redirect="/operator",
     )
+    if resp:
+        return resp
     # redirect per ricaricare pagina e label aggiornate
     return RedirectResponse("/operator", status_code=303)
 
@@ -326,10 +390,14 @@ async def op_dsp_volume(
     """
     Handler per i pulsanti VOLUME +/- (bus = in_a, out0..3).
     """
-    await _post(
+    resp = await _safe_post(
         f"{ROOMCTL_BASE}/api/dsp/volume",
         {"bus": bus, "delta": int(delta)},
+        "Errore regolazione volume DSP",
+        redirect="/operator",
     )
+    if resp:
+        return resp
     return RedirectResponse("/operator", status_code=303)
 
 
@@ -341,29 +409,55 @@ async def op_dsp_recall(
     """
     Handler per i pulsanti Recall preset (F00, U01, U02, U03).
     """
-    await _post(
+    resp = await _safe_post(
         f"{ROOMCTL_BASE}/api/dsp/recall",
         {"preset": preset},
+        "Errore richiamo preset DSP",
+        redirect="/operator",
     )
+    if resp:
+        return resp
     return RedirectResponse("/operator", status_code=303)
 
 @router.post('/operator/shelly/set')
 async def op_shelly_set(sid:str=Form(...),on:bool=Form(...),_=Depends(require_operator)):
- await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set",{'on':bool(on)}); return RedirectResponse('/operator',status_code=303)
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/shelly/{sid}/set",
+        {'on': bool(on)},
+        "Errore comando relè",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
+    return RedirectResponse('/operator',status_code=303)
 
 @router.post('/operator/shelly/pulse')
 async def op_shelly_pulse(sid:str=Form(...),_=Depends(require_operator)):
- #await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set",{'on':True}); import asyncio; await asyncio.sleep(0.8); await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set",{'on':False}); return RedirectResponse('/operator',status_code=303)
- await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set", {'on': True})
- return RedirectResponse('/operator', status_code=303)
+    #await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set",{'on':True}); import asyncio; await asyncio.sleep(0.8); await _post(f"{ROOMCTL_BASE}/api/shelly/{sid}/set",{'on':False}); return RedirectResponse('/operator',status_code=303)
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/shelly/{sid}/set",
+        {'on': True},
+        "Errore impulso relè",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
+    return RedirectResponse('/operator', status_code=303)
 
 @router.post('/operator/shelly/invert')
 async def op_shelly_invert(req: Request, _=Depends(require_operator)):
- form = await req.form()
- values = form.getlist('inverti_corsa') if hasattr(form, 'getlist') else [form.get('inverti_corsa', '')]
- invert_val = any(str(v).lower() in ('true', '1', 'on', 'yes') for v in values)
- await _post(f"{ROOMCTL_BASE}/api/shelly/inverti_corsa", {'inverti_corsa': invert_val})
- return RedirectResponse('/operator', status_code=303)
+    form = await req.form()
+    values = form.getlist('inverti_corsa') if hasattr(form, 'getlist') else [form.get('inverti_corsa', '')]
+    invert_val = any(str(v).lower() in ('true', '1', 'on', 'yes') for v in values)
+    resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/shelly/inverti_corsa",
+        {'inverti_corsa': invert_val},
+        "Errore aggiornamento inversione tende",
+        redirect="/operator",
+    )
+    if resp:
+        return resp
+    return RedirectResponse('/operator', status_code=303)
 
 
 @router.post("/operator/power_schedule")
@@ -385,8 +479,8 @@ async def op_power_schedule(req: Request, _=Depends(require_operator)):
     try:
         await _post(f"{ROOMCTL_BASE}/api/power/schedule", payload)
         state["text"] = "Pianificazione alimentazione aggiornata"
-    except HTTPException as exc:
-        state["text"] = f"Errore salvataggio pianificazione: {exc.detail}"
+    except Exception:
+        state["text"] = "Errore salvataggio pianificazione"
     set_public_state(state)
 
     return RedirectResponse("/operator", status_code=303)
@@ -417,8 +511,8 @@ async def ui_set_datetime(req: Request, _=Depends(require_operator)):
             {"datetime": dt.isoformat()},
         )
         state["text"] = "Data e ora aggiornate"
-    except HTTPException as exc:
-        state["text"] = f"Errore impostazione data/ora: {exc.detail}"
+    except Exception:
+        state["text"] = "Errore impostazione data/ora"
 
     set_public_state(state)
     return RedirectResponse("/operator", status_code=303)
@@ -433,7 +527,7 @@ async def ui_reboot_terminal(_: bool = Depends(require_operator)):
         # Adatta l’URL a come il backend espone il comando di reboot
         await _post(f"{ROOMCTL_BASE}/api/special/reboot_terminal", {})
         state["text"] = "Riavvio terminale richiesto..."
-    except HTTPException as exc:
-        state["text"] = f"Errore riavvio terminale: {exc.detail}"
+    except Exception:
+        state["text"] = "Errore riavvio terminale"
     set_public_state(state)
     return RedirectResponse('/', status_code=303)
