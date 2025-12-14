@@ -6,11 +6,13 @@ Questi file automatizzano l'installazione e l'avvio dell'applicazione su un Rasp
 
 Script di deploy principale che va eseguito come `root` o con `sudo` dalla cartella del progetto clonata sul Raspberry Pi.
 
+Lo script controlla la presenza di Raspberry Pi OS Bookworm e segnala se viene eseguito su una distribuzione diversa o su un'architettura non tipica.
+
 Cosa fa:
 1. Installa i pacchetti di sistema necessari (Python, git, rsync, curl, ecc.).
 2. Crea l'utente di servizio `roomctl` se manca.
 3. Sincronizza i sorgenti nella directory `/opt/roomctl`, ignorando `.git`, `.venv` e i file YAML di configurazione esistenti.
-4. Crea l'ambiente virtuale Python in `/opt/roomctl/.venv` e installa le dipendenze principali (FastAPI, Uvicorn, ecc.).
+4. Crea l'ambiente virtuale Python in `/opt/roomctl/.venv` e installa le dipendenze elencate in `requirements.txt`.
 5. Copia i file di configurazione di default in `/opt/roomctl/config` senza sovrascrivere quelli già presenti.
 6. Installa e abilita il servizio systemd `roomctl.service` e il power scheduler.
 
