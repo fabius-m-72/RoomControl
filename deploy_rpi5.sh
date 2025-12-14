@@ -8,10 +8,26 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
+if [[ -f /etc/os-release ]]; then
+  # shellcheck disable=SC1091
+  source /etc/os-release
+  if [[ "${VERSION_CODENAME:-}" != "bookworm" ]]; then
+    echo "[WARN] Rilevato ${VERSION_CODENAME:-sconosciuto}. Lo script è ottimizzato per Raspberry Pi OS Bookworm." >&2
+  fi
+else
+  echo "[WARN] Impossibile rilevare la distribuzione (manca /etc/os-release)." >&2
+fi
+
+ARCH=$(uname -m)
+if [[ "$ARCH" != "aarch64" && "$ARCH" != "armv7l" ]]; then
+  echo "[WARN] Architettura non tipica di Raspberry Pi ($ARCH). Proseguo comunque." >&2
+fi
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/roomctl"
 SYSTEM_USER="roomctl"
 PYTHON_BIN="python3"
+REQUIREMENTS_FILE="$APP_DIR/requirements.txt"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -21,6 +37,8 @@ apt-get install -y \
   python3 \
   python3-venv \
   python3-pip \
+  python3-dev \
+  build-essential \
   git \
   rsync \
   curl
@@ -45,14 +63,12 @@ if [[ ! -d "$VENV_DIR" ]]; then
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
+if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
+  install -m 644 "$SCRIPT_DIR/requirements.txt" "$REQUIREMENTS_FILE"
+fi
+
 "$VENV_DIR/bin/pip" install --upgrade pip
-"$VENV_DIR/bin/pip" install \
-  fastapi \
-  "uvicorn[standard]" \
-  httpx \
-  PyYAML \
-  python-multipart \
-  jinja2
+"$VENV_DIR/bin/pip" install -r "$REQUIREMENTS_FILE"
 
 copy_if_absent() {
   local src="$1" dst="$2"
