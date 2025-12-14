@@ -166,6 +166,7 @@ async def _power_sequence(on: bool):
         # ok = await shelly_main.set_relay(ch_main, False)
         #log.info("Shelly mains OFF: %s", ok)
 
+
 @router.post("/projector/power")
 async def projector_power(body: PowerBody, background: BackgroundTasks):
     # NON blocchiamo la richiesta: lanciamo un task e rispondiamo 202
