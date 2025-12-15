@@ -2,6 +2,14 @@
 import asyncio, hashlib, re
 from typing import Optional
 
+class PJLinkError(RuntimeError):
+    """Errore generico PJLink."""
+
+
+class PJLinkConnectionError(PJLinkError):
+    """Errore di connessione verso il proiettore."""
+
+
 class PJLinkClient:
     def __init__(self, host: str="192.168.1.200", port: int = 4352, password: str = "1234", timeout: float = 8.0, retries: int = 4):
         self.host = host
@@ -13,7 +21,15 @@ class PJLinkClient:
         self.input_map = {"Computer1": "11","Computer2": "12", "HDMI1": "32", "HDMI2": "33", "HDBaseT": "56"}
 
     async def _open(self):
-        return await asyncio.wait_for(asyncio.open_connection(self.host, self.port), self.timeout)
+        try:
+            return await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port),
+                self.timeout,
+            )
+        except (asyncio.TimeoutError, OSError) as exc:
+            raise PJLinkConnectionError(
+                f"Connessione PJLink fallita verso {self.host}:{self.port}: {exc}"
+            ) from exc
 
     async def _handshake(self, r: asyncio.StreamReader, w: asyncio.StreamWriter):
         # Legge il banner: "PJLINK 0" oppure "PJLINK 1 xxxxxxxx\r"
@@ -22,7 +38,7 @@ class PJLinkClient:
         # print("PJLINK banner:", text)
         m = re.match(r"PJLINK\s+(\d)(?:\s+([0-9A-Fa-f]+))?", text)
         if not m:
-            raise RuntimeError(f"Banner PJLINK non valido: {text}")
+            raise PJLinkError(f"Banner PJLINK non valido: {text}")
         need_auth = m.group(1) == "1"
         rand = m.group(2) or ""
         return need_auth, rand
@@ -42,7 +58,7 @@ class PJLinkClient:
                     if not self.password:
                         w.close()
                         await w.wait_closed()
-                        raise RuntimeError("PJLink richiede password ma non è configurata.")
+                        raise PJLinkError("PJLink richiede password ma non è configurata.")
                     # MD5( rand + password + payload_senza_CR )
                     to_hash = (rand + self.password).encode()
                     auth = hashlib.md5(to_hash).hexdigest()
@@ -61,7 +77,9 @@ class PJLinkClient:
             except Exception as e:
                 last_exc = e
                 await asyncio.sleep(0.4 * (attempt + 1))  # backoff breve
-        raise last_exc or RuntimeError("Errore PJLink sconosciuto")
+        if isinstance(last_exc, PJLinkError):
+            raise last_exc
+        raise PJLinkError("Errore PJLink sconosciuto") from last_exc
 
     async def power(self, on: bool) -> bool:
         # POWR 1/0
