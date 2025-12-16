@@ -23,16 +23,32 @@ class PJLinkConnectionError(PJLinkError):
 
 
 class PJLinkClient:
-    def __init__(self, host: str="192.168.1.200", port: int = 4352, password: str = "1234", timeout: float = 8.0, retries: int = 4):
+    def __init__(
+        self,
+        host: str = "192.168.1.200",
+        port: int = 4352,
+        password: str = "1234",
+        timeout: float = 8.0,
+        retries: int = 4,
+        ping_check: bool = False,
+    ):
         self.host = host
         self.port = port
         self.password = password or ""
         self.timeout = timeout
         self.retries = retries
+        self.ping_check = ping_check
         # mappa sorgenti: adatta se il tuo modello usa codici diversi
         self.input_map = {"Computer1": "11","Computer2": "12", "HDMI1": "32", "HDMI2": "33", "HDBaseT": "56"}
 
     async def _open(self):
+        if self.ping_check and not await self._preflight_ping():
+            raise PJLinkConnectionError(
+                self.host,
+                self.port,
+                "Host non raggiungibile (ping fallito)",
+                ConnectionError("Ping fallito"),
+            )
         try:
             return await asyncio.wait_for(
                 asyncio.open_connection(self.host, self.port),
@@ -97,6 +113,32 @@ class PJLinkClient:
         if isinstance(last_exc, PJLinkError):
             raise last_exc
         raise PJLinkError("Errore PJLink sconosciuto") from last_exc
+
+    async def _preflight_ping(self) -> bool:
+        """Esegue un ping veloce (1 pacchetto, 1s) prima di aprire la connessione."""
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "ping",
+                "-c",
+                "1",
+                "-W",
+                "1",
+                self.host,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2)
+            except asyncio.TimeoutError:
+                proc.kill()
+                return False
+            return proc.returncode == 0
+        except FileNotFoundError:
+            # Ping non presente: ignora pre-check
+            return True
+        except Exception:
+            return False
 
     async def power(self, on: bool) -> bool:
         # POWR 1/0
