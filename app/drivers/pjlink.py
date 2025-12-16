@@ -9,6 +9,18 @@ class PJLinkError(RuntimeError):
 class PJLinkConnectionError(PJLinkError):
     """Errore di connessione verso il proiettore."""
 
+    def __init__(self, host: str, port: int, message: str, cause: BaseException):
+        self.host = host
+        self.port = port
+        self.cause = cause
+        super().__init__(message)
+
+    def __str__(self) -> str:  # pragma: no cover - semplice adattatore per i log
+        base = super().__str__()
+        return f"Connessione PJLink fallita verso {self.host}:{self.port}: {base}" + (
+            "; verifica indirizzo IP/rete del proiettore" if base else ""
+        )
+
 
 class PJLinkClient:
     def __init__(self, host: str="192.168.1.200", port: int = 4352, password: str = "1234", timeout: float = 8.0, retries: int = 4):
@@ -27,9 +39,7 @@ class PJLinkClient:
                 self.timeout,
             )
         except (asyncio.TimeoutError, OSError) as exc:
-            raise PJLinkConnectionError(
-                f"Connessione PJLink fallita verso {self.host}:{self.port}: {exc}"
-            ) from exc
+            raise PJLinkConnectionError(self.host, self.port, str(exc), exc) from exc
 
     async def _handshake(self, r: asyncio.StreamReader, w: asyncio.StreamWriter):
         # Legge il banner: "PJLINK 0" oppure "PJLINK 1 xxxxxxxx\r"
@@ -74,8 +84,15 @@ class PJLinkClient:
                 except Exception:
                     pass
                 return resp.decode(errors="ignore").strip()
-            except Exception as e:
-                last_exc = e
+            except PJLinkConnectionError as exc:
+                last_exc = exc
+                # Se la rete non è raggiungibile (es. ENETUNREACH/113) non insistiamo
+                errno = getattr(exc.cause, "errno", None)
+                if errno in {101, 113}:  # network unreachable / no route to host
+                    break
+                await asyncio.sleep(0.4 * (attempt + 1))  # backoff breve
+            except Exception as exc:
+                last_exc = exc
                 await asyncio.sleep(0.4 * (attempt + 1))  # backoff breve
         if isinstance(last_exc, PJLinkError):
             raise last_exc
