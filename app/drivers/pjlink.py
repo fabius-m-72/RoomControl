@@ -13,13 +13,11 @@ class PJLinkConnectionError(PJLinkError):
         self.host = host
         self.port = port
         self.cause = cause
-        super().__init__(message)
-
-    def __str__(self) -> str:  # pragma: no cover - semplice adattatore per i log
-        base = super().__str__()
-        return f"Connessione PJLink fallita verso {self.host}:{self.port}: {base}" + (
-            "; verifica indirizzo IP/rete del proiettore" if base else ""
-        )
+        base = message or ""
+        formatted = f"Connessione PJLink fallita verso {self.host}:{self.port}: {base}"
+        if base:
+            formatted += "; verifica indirizzo IP/rete del proiettore"
+        super().__init__(formatted)
 
 
 class PJLinkClient:
