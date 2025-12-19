@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import os,yaml,subprocess
 from datetime import datetime
 from app.state import set_public_state,get_public_state
-from app.drivers.pjlink import PJLinkClient
+from app.drivers.pjlink import PJLinkClient, PJLinkConnectionError
 from app.drivers.shelly_http import ShellyHTTP, ShellyHTTP_script
 from app.drivers.dsp408 import DSP408Client
 from app import power_schedule
@@ -16,6 +16,17 @@ log = logging.getLogger("api")
 router = APIRouter()
 
 CONFIG_DEV=os.environ.get('ROOMCTL_DEVICES','/opt/roomctl/config/devices.yaml')
+
+
+def _format_pjlink_error(exc: Exception, host: str, port: int) -> str:
+    if isinstance(exc, PJLinkConnectionError):
+        return str(exc)
+    if isinstance(exc, OSError):
+        return (
+            f"Connessione PJLink fallita verso {host}:{port}: {exc}; "
+            "verifica indirizzo IP/rete del proiettore"
+        )
+    return str(exc)
 
 def load_devices():
  try:
@@ -207,7 +218,8 @@ async def _power_sequence(on: bool):
             #stato=get_public_state(); stato['text']='Proiettore -> ON'; set_public_state(stato)
         except Exception as e:
             stato=get_public_state(); stato['text']='Errore accensione proiettore'; set_public_state(stato)
-            raise HTTPException(status_code=502, detail=f"Comando PJLink power-on fallito: {e}") from e
+            detail = _format_pjlink_error(e, pconf["host"], pconf.get("port", 4352))
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-on fallito: {detail}") from e
 
     else:
         # POWER OFF
@@ -216,7 +228,8 @@ async def _power_sequence(on: bool):
             #log.info("PJLink POWER OFF: %s", okp)
         except Exception as e:
             log.exception("PJLink POWER OFF error: %s", e)
-            raise HTTPException(status_code=502, detail=f"Comando PJLink power-off fallito: {e}") from e
+            detail = _format_pjlink_error(e, pconf["host"], pconf.get("port", 4352))
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-off fallito: {detail}") from e
 
         # attesa cooldown a STANDBY (spesso serve)
         off = await _wait_power_state(pj, desired=0, budget_s=90)
