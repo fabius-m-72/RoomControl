@@ -2,7 +2,7 @@ from fastapi import APIRouter,HTTPException
 from pydantic import BaseModel
 import os,yaml
 from app.state import set_public_state,get_public_state
-from app.drivers.pjlink import PJLinkClient
+from app.drivers.pjlink import PJLinkClient, PJLinkConnectionError
 from app.drivers.shelly_http import ShellyHTTP
 from app.drivers.dsp408 import DSP408Client
 
@@ -14,6 +14,41 @@ log = logging.getLogger("api")
 router = APIRouter()
 
 CONFIG_DEV=os.environ.get('ROOMCTL_DEVICES','/opt/roomctl/config/devices.yaml')
+
+
+async def _fast_ping(host: str) -> bool:
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ping",
+            "-c",
+            "1",
+            "-W",
+            "1",
+            host,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=2)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return False
+        return proc.returncode == 0
+    except FileNotFoundError:
+        return True
+    except Exception:
+        return False
+
+
+def _format_pjlink_error(exc: Exception, host: str, port: int) -> str:
+    if isinstance(exc, PJLinkConnectionError):
+        return str(exc)
+    if isinstance(exc, OSError):
+        return (
+            f"Connessione PJLink fallita verso {host}:{port}: {exc}; "
+            "verifica indirizzo IP/rete del proiettore"
+        )
+    return str(exc)
 
 def load_devices():
  try:
@@ -110,6 +145,16 @@ async def _power_sequence(on: bool):
     nic_warmup = int(pconf.get("nic_warmup_s", 12))
     tout = float(pconf.get("pjlink_timeout_s", 8))
     retr = int(pconf.get("pjlink_retries", 4))
+    ping_check = bool(pconf.get("pjlink_ping_check", True))
+
+    if ping_check and not await _fast_ping(pconf["host"]):
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Proiettore non raggiungibile via rete: ping verso "
+                f"{pconf['host']} fallito"
+            ),
+        )
 
     pj = PJLinkClient(
         host=pconf["host"],
@@ -117,6 +162,7 @@ async def _power_sequence(on: bool):
         password=pconf.get("password", "1234"),
         timeout=tout,
         retries=retr,
+        ping_check=ping_check,
     )
 
     shelly_main = ShellyHTTP(base=devices["shelly1"]["base"])
@@ -139,7 +185,8 @@ async def _power_sequence(on: bool):
             stato=get_public_state(); stato['text']='Proiettore -> ON'; set_public_state(stato)
         except Exception as e:
             stato=get_public_state(); stato['text']='Errore accensione proiettore'; set_public_state(stato)
-            #log.exception("PJLink POWER ON error: %s", e)
+            detail = _format_pjlink_error(e, pconf["host"], pconf.get("port", 4352))
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-on fallito: {detail}") from e
 
         # 4) attesa stato ON (fino a 60 s per sicurezza)
         #await asyncio.sleep(30)
@@ -156,7 +203,9 @@ async def _power_sequence(on: bool):
             okp = await pj.power(False)
             #log.info("PJLink POWER OFF: %s", okp)
         except Exception as e:
-            log.exception("PJLink POWER OFF error: %s", e)
+            detail = _format_pjlink_error(e, pconf["host"], pconf.get("port", 4352))
+            log.exception("PJLink POWER OFF error: %s", detail)
+            raise HTTPException(status_code=502, detail=f"Comando PJLink power-off fallito: {detail}") from e
 
         # attesa cooldown a STANDBY (spesso serve)
         off = await _wait_power_state(pj, desired=0, budget_s=90)
@@ -175,7 +224,14 @@ async def projector_power(body: PowerBody, background: BackgroundTasks):
 
 @router.post('/projector/input')
 async def projector_input(body:InputReq):
- pj=PJLinkClient(cfg['projector']['host'],password=(cfg['projector'].get('password') or None))
+ host = cfg['projector']['host']
+ if bool(cfg['projector'].get('pjlink_ping_check', True)) and not await _fast_ping(host):
+     raise HTTPException(
+         status_code=502,
+         detail=f"Proiettore non raggiungibile via rete: ping verso {host} fallito",
+     )
+
+ pj=PJLinkClient(host,password=(cfg['projector'].get('password') or None))
  ok=await pj.set_input(body.source)
  if not ok: raise HTTPException(500,'PJLink input failed')
  st=get_public_state(); st['projector']['input']=body.source.upper(); set_public_state(st)
