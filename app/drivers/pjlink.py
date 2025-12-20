@@ -28,7 +28,7 @@ class PJLinkClient:
         password: str = "1234",
         timeout: float = 8.0,
         retries: int = 4,
-        ping_check: bool = False,
+        ping_check: bool = True,
     ):
         self.host = host
         self.port = port

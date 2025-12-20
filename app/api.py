@@ -185,7 +185,7 @@ async def _power_sequence(on: bool):
     nic_warmup = int(pconf.get("nic_warmup_s", 12))
     tout = float(pconf.get("pjlink_timeout_s", 8))
     retr = int(pconf.get("pjlink_retries", 4))
-    ping_check = bool(pconf.get("pjlink_ping_check", False))
+    ping_check = bool(pconf.get("pjlink_ping_check", True))
 
     pj = PJLinkClient(
         host=pconf["host"],
