@@ -252,13 +252,13 @@ class DSP408Client:
 				mute_in = bool(on) and (_as_bool(in_map.get(ch_s, True)) or bool(on))
 				print("mute-in(",ch_s,")=",mute_in)
 				self._cli.set_mute(is_output=False, channel=ch, mute=mute_in)
-				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
+				mute_out = bool(on) and (_as_bool(out_map.get(ch_s, True)) or bool(on))
 				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
 
 			# OUT 4..7
 			for ch in (4, 5, 6, 7):
 				ch_s = str(ch)
-				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
+				mute_out = bool(on) and (_as_bool(out_map.get(ch_s, True)) or bool(on))
 				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
 
 		await asyncio.to_thread(_do)
