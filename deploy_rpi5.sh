@@ -8,14 +8,14 @@
 # - crea un virtualenv Python e installa le dipendenze applicative
 # - copia le configurazioni di default senza sovrascrivere le esistenti
 # - configura il boot (schermata nera, rotazione display/touch, ricarica batteria RTC)
-# - abilita la modalità kiosk con Chromium in autologin su tty1
+# - abilita la modalità kiosk con Chromium via servizio systemd dedicato
 # - installa e abilita i servizi systemd (roomctl e power scheduler)
 # Note manutenzione:
 # - per uscire dal kiosk usare Ctrl+Alt+F2, fare login come amministratore
-# - per fermare temporaneamente il kiosk: systemctl stop getty@tty1
-# - per riattivarlo: systemctl restart getty@tty1
-# - per disabilitare l'autostart di Chromium rimuovere o commentare ~/.bash_profile del kiosk
-# - log utili: journalctl -b -u getty@tty1 e journalctl -b _COMM=Xorg
+# - per fermare temporaneamente il kiosk: systemctl stop kiosk.service
+# - per riattivarlo: systemctl restart kiosk.service
+# - per disabilitare l'autostart di Chromium: systemctl disable --now kiosk.service
+# - log utili: journalctl -b -u kiosk.service e journalctl -b _COMM=Xorg
 set -euo pipefail
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -31,7 +31,7 @@ BOOT_CONFIG="/boot/firmware/config.txt"
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
 KIOSK_USER="kiosk"
 KIOSK_APP_URL="http://127.0.0.1:8080"
-KIOSK_SERVICE_DIR="/etc/systemd/system/getty@tty1.service.d"
+KIOSK_SERVICE="/etc/systemd/system/kiosk.service"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -176,13 +176,6 @@ if ! id -u "$KIOSK_USER" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$KIOSK_USER"
 fi
 
-install -d "$KIOSK_SERVICE_DIR"
-cat > "${KIOSK_SERVICE_DIR}/autologin.conf" <<EOF
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin ${KIOSK_USER} --noclear %I \$TERM
-EOF
-
 install -d /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/40-touchscreen-rotate.conf <<'EOF'
 Section "InputClass"
@@ -200,26 +193,32 @@ xset s noblank
 exec chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
 EOF
 
-cat > "/home/${KIOSK_USER}/.bash_profile" <<'EOF'
-if [[ -z "${DISPLAY:-}" && "$(tty)" == "/dev/tty1" ]]; then
-  startx -- -nocursor
-fi
-EOF
-
-cat > "/home/${KIOSK_USER}/.profile" <<'EOF'
-if [[ -z "${DISPLAY:-}" && "$(tty)" == "/dev/tty1" ]]; then
-  startx -- -nocursor
-fi
-EOF
-
 touch "/home/${KIOSK_USER}/.Xauthority"
 
 chown "$KIOSK_USER:$KIOSK_USER" \
   "/home/${KIOSK_USER}/.xinitrc" \
-  "/home/${KIOSK_USER}/.bash_profile" \
-  "/home/${KIOSK_USER}/.profile" \
   "/home/${KIOSK_USER}/.Xauthority"
 chmod 755 "/home/${KIOSK_USER}/.xinitrc"
+
+cat > "$KIOSK_SERVICE" <<EOF
+[Unit]
+Description=Chromium Kiosk
+After=systemd-user-sessions.service network-online.target roomctl.service
+Wants=network-online.target roomctl.service
+
+[Service]
+User=${KIOSK_USER}
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/${KIOSK_USER}/.Xauthority
+ExecStart=/usr/bin/startx /home/${KIOSK_USER}/.xinitrc -- :0 -nocursor
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl disable --now getty@tty1 || true
+systemctl enable --now kiosk.service
 
 install_systemd_unit() {
   local unit_src="$1" unit_dst="$2"
