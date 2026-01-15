@@ -8,7 +8,13 @@
 # - crea un virtualenv Python e installa le dipendenze applicative
 # - copia le configurazioni di default senza sovrascrivere le esistenti
 # - configura il boot (schermata nera, rotazione display/touch, ricarica batteria RTC)
+# - abilita la modalità kiosk con Chromium in autologin su tty1
 # - installa e abilita i servizi systemd (roomctl e power scheduler)
+# Note manutenzione:
+# - per uscire dal kiosk usare Ctrl+Alt+F2, fare login come amministratore
+# - per fermare temporaneamente il kiosk: systemctl stop getty@tty1
+# - per riattivarlo: systemctl restart getty@tty1
+# - per disabilitare l'autostart di Chromium rimuovere o commentare ~/.bash_profile del kiosk
 set -euo pipefail
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -22,10 +28,13 @@ SYSTEM_USER="roomctl"
 PYTHON_BIN="python3"
 BOOT_CONFIG="/boot/firmware/config.txt"
 CMDLINE_FILE="/boot/firmware/cmdline.txt"
+KIOSK_USER="kiosk"
+KIOSK_APP_URL="http://127.0.0.1:8080"
+KIOSK_SERVICE_DIR="/etc/systemd/system/getty@tty1.service.d"
 
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[1/7] Installazione pacchetti di sistema..."
+echo "[1/8] Installazione pacchetti di sistema..."
 apt-get update
 apt-get install -y \
   python3 \
@@ -33,14 +42,18 @@ apt-get install -y \
   python3-pip \
   git \
   rsync \
-  curl
+  curl \
+  chromium \
+  xserver-xorg \
+  xinit \
+  x11-xserver-utils
 
 if ! id -u "$SYSTEM_USER" >/dev/null 2>&1; then
-  echo "[2/7] Creo l'utente di servizio $SYSTEM_USER..."
+  echo "[2/8] Creo l'utente di servizio $SYSTEM_USER..."
   useradd --system --create-home --shell /usr/sbin/nologin "$SYSTEM_USER"
 fi
 
-echo "[3/7] Sincronizzo i sorgenti in $APP_DIR..."
+echo "[3/8] Sincronizzo i sorgenti in $APP_DIR..."
 install -d "$APP_DIR"
 rsync -a --delete \
   --exclude ".git" \
@@ -51,7 +64,7 @@ chown -R "$SYSTEM_USER:$SYSTEM_USER" "$APP_DIR"
 
 VENV_DIR="$APP_DIR/.venv"
 if [[ ! -d "$VENV_DIR" ]]; then
-  echo "[4/7] Creo l'ambiente virtuale Python..."
+  echo "[4/8] Creo l'ambiente virtuale Python..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
@@ -75,7 +88,7 @@ copy_if_absent() {
 }
 
 copy_defaults() {
-  echo "[5/7] Copio le configurazioni di default (senza sovrascrivere le esistenti)..."
+  echo "[5/8] Copio le configurazioni di default (senza sovrascrivere le esistenti)..."
   copy_if_absent "$SCRIPT_DIR/config/config.yaml" "$APP_DIR/config/config.yaml"
   copy_if_absent "$SCRIPT_DIR/config/devices.yaml" "$APP_DIR/config/devices.yaml"
   copy_if_absent "$SCRIPT_DIR/config/ui.yaml" "$APP_DIR/config/ui.yaml"
@@ -147,12 +160,50 @@ update_cmdline() {
   printf '%s\n' "${updated[*]}" > "$CMDLINE_FILE"
 }
 
-echo "[6/7] Configuro boot (schermata nera, rotazione, RTC)..."
+echo "[6/8] Configuro boot (schermata nera, rotazione, RTC)..."
 ensure_config_setting "disable_splash" "1"
 ensure_config_setting "display_rotate" "1"
 ensure_config_setting "lcd_rotate" "1"
 ensure_dtparam_setting "rtc_bbat_vchg" "3000000"
 update_cmdline
+
+echo "[7/8] Configuro modalità kiosk (Chromium)..."
+if ! id -u "$KIOSK_USER" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash "$KIOSK_USER"
+fi
+
+install -d "$KIOSK_SERVICE_DIR"
+cat > "${KIOSK_SERVICE_DIR}/autologin.conf" <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${KIOSK_USER} --noclear %I \$TERM
+EOF
+
+install -d /etc/X11/xorg.conf.d
+cat > /etc/X11/xorg.conf.d/40-touchscreen-rotate.conf <<'EOF'
+Section "InputClass"
+    Identifier "Touchscreen Rotation"
+    MatchIsTouchscreen "on"
+    Option "CalibrationMatrix" "0 1 0 -1 0 1 0 0 1"
+EndSection
+EOF
+
+cat > "/home/${KIOSK_USER}/.xinitrc" <<EOF
+#!/usr/bin/env bash
+xset s off
+xset -dpms
+xset s noblank
+exec chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
+EOF
+
+cat > "/home/${KIOSK_USER}/.bash_profile" <<'EOF'
+if [[ -z "${DISPLAY:-}" && "$(tty)" == "/dev/tty1" ]]; then
+  startx -- -nocursor
+fi
+EOF
+
+chown "$KIOSK_USER:$KIOSK_USER" "/home/${KIOSK_USER}/.xinitrc" "/home/${KIOSK_USER}/.bash_profile"
+chmod 755 "/home/${KIOSK_USER}/.xinitrc"
 
 install_systemd_unit() {
   local unit_src="$1" unit_dst="$2"
@@ -160,7 +211,7 @@ install_systemd_unit() {
   echo "  - Installato $(basename "$unit_dst")"
 }
 
-echo "[7/7] Configuro i servizi systemd..."
+echo "[8/8] Configuro i servizi systemd..."
 install_systemd_unit "$APP_DIR/config/roomctl.service" /etc/systemd/system/roomctl.service
 systemctl daemon-reload
 systemctl enable --now roomctl.service
