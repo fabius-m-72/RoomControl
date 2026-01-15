@@ -79,6 +79,7 @@ fi
   httpx \
   PyYAML \
   python-multipart \
+  requests \
   jinja2
 
 copy_if_absent() {
@@ -208,9 +209,14 @@ Wants=network-online.target roomctl.service
 
 [Service]
 User=${KIOSK_USER}
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+TTYReset=yes
+TTYVHangup=yes
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/${KIOSK_USER}/.Xauthority
-ExecStart=/usr/bin/startx /home/${KIOSK_USER}/.xinitrc -- :0 -nocursor
+ExecStart=/usr/bin/startx /home/${KIOSK_USER}/.xinitrc -- :0 -nocursor -keeptty vt1
 Restart=on-failure
 
 [Install]
@@ -218,6 +224,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl disable --now getty@tty1 || true
+systemctl daemon-reload
 systemctl enable --now kiosk.service
 
 install_systemd_unit() {
