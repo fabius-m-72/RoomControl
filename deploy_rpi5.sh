@@ -15,7 +15,7 @@
 # - per fermare temporaneamente il kiosk: systemctl stop kiosk.service
 # - per riattivarlo: systemctl restart kiosk.service
 # - per disabilitare l'autostart di Chromium: systemctl disable --now kiosk.service
-# - log utili: journalctl -b -u kiosk.service e journalctl -b _COMM=Xorg
+# - log utili: journalctl -b -u kiosk.service e /home/kiosk/.local/share/kiosk-xorg.log
 set -euo pipefail
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -194,10 +194,12 @@ xset s noblank
 exec chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
 EOF
 
+install -d "/home/${KIOSK_USER}/.local/share"
 touch "/home/${KIOSK_USER}/.Xauthority"
 
 chown "$KIOSK_USER:$KIOSK_USER" \
   "/home/${KIOSK_USER}/.xinitrc" \
+  "/home/${KIOSK_USER}/.local/share" \
   "/home/${KIOSK_USER}/.Xauthority"
 chmod 755 "/home/${KIOSK_USER}/.xinitrc"
 
@@ -216,7 +218,7 @@ TTYReset=yes
 TTYVHangup=yes
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/${KIOSK_USER}/.Xauthority
-ExecStart=/usr/bin/startx /home/${KIOSK_USER}/.xinitrc -- :0 -nocursor -keeptty vt1
+ExecStart=/usr/bin/xinit /home/${KIOSK_USER}/.xinitrc -- /usr/lib/xorg/Xorg :0 -nolisten tcp -nocursor -keeptty vt1 -logfile /home/${KIOSK_USER}/.local/share/kiosk-xorg.log
 Restart=on-failure
 
 [Install]
@@ -224,6 +226,10 @@ WantedBy=multi-user.target
 EOF
 
 systemctl disable --now getty@tty1 || true
+cat > /etc/X11/Xwrapper.config <<'EOF'
+allowed_users=anybody
+needs_root_rights=yes
+EOF
 systemctl daemon-reload
 systemctl enable --now kiosk.service
 
