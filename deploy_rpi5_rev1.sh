@@ -8,7 +8,7 @@
 # - sincronizza i sorgenti applicativi in /opt/roomctl ed imposta i permessi
 # - crea un virtualenv Python e installa le dipendenze applicative
 # - copia le configurazioni di default senza sovrascrivere le esistenti
-# - configura il boot per ricarica batteria RTC
+# - configura il boot per ricarica batteria RTC (overlay rtc-rp1)
 # - installa e abilita i servizi systemd (roomctl e power scheduler)
 # Troubleshooting:
 # - verificare log servizio roomctl: journalctl -b -u roomctl.service
@@ -108,7 +108,17 @@ ensure_dtparam_setting() {
   fi
 }
 
+ensure_boot_line() {
+  local line="$1"
+  if [[ -f "$BOOT_CONFIG" ]]; then
+    if ! grep -Fxq "$line" "$BOOT_CONFIG"; then
+      echo "$line" >> "$BOOT_CONFIG"
+    fi
+  fi
+}
+
 echo "[7/8] Configuro ricarica batteria RTC..."
+ensure_boot_line "dtoverlay=rtc-rp1"
 ensure_dtparam_setting "rtc_bbat_vchg" "3000000"
 
 install_systemd_unit() {
