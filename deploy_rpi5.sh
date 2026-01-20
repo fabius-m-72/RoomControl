@@ -176,6 +176,7 @@ echo "[7/8] Configuro modalità kiosk (Chromium)..."
 if ! id -u "$KIOSK_USER" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$KIOSK_USER"
 fi
+KIOSK_UID="$(id -u "$KIOSK_USER")"
 
 install -d /etc/X11/xorg.conf.d
 cat > /etc/X11/xorg.conf.d/40-touchscreen-rotate.conf <<'EOF'
@@ -191,7 +192,8 @@ cat > "/home/${KIOSK_USER}/.xinitrc" <<EOF
 xset s off
 xset -dpms
 xset s noblank
-exec chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
+exec dbus-run-session -- \
+  chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
 EOF
 
 install -d "/home/${KIOSK_USER}/.local/share"
@@ -211,13 +213,16 @@ Wants=network-online.target roomctl.service
 
 [Service]
 User=${KIOSK_USER}
+PermissionsStartOnly=true
 PAMName=login
 TTYPath=/dev/tty1
 StandardInput=tty
 TTYReset=yes
 TTYVHangup=yes
+Environment=XDG_RUNTIME_DIR=/run/user/${KIOSK_UID}
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/${KIOSK_USER}/.Xauthority
+ExecStartPre=/usr/bin/install -d -m 700 -o ${KIOSK_USER} -g ${KIOSK_USER} /run/user/${KIOSK_UID}
 ExecStart=/usr/bin/xinit /home/${KIOSK_USER}/.xinitrc -- /usr/lib/xorg/Xorg :0 -nolisten tcp -nocursor -keeptty vt1 -logfile /home/${KIOSK_USER}/.local/share/kiosk-xorg.log
 Restart=on-failure
 
@@ -225,12 +230,14 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 
+systemctl stop kiosk.service || true
 systemctl disable --now getty@tty1 || true
 cat > /etc/X11/Xwrapper.config <<'EOF'
 allowed_users=anybody
 needs_root_rights=yes
 EOF
 systemctl daemon-reload
+systemctl reset-failed kiosk.service || true
 systemctl enable --now kiosk.service
 
 install_systemd_unit() {
