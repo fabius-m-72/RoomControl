@@ -10,6 +10,12 @@
 # - copia le configurazioni di default senza sovrascrivere le esistenti
 # - configura il boot per ricarica batteria RTC
 # - installa e abilita i servizi systemd (roomctl e power scheduler)
+# Troubleshooting:
+# - verificare log servizio roomctl: journalctl -b -u roomctl.service
+# - verificare log scheduler: journalctl -b -u roomctl-power-scheduler.service
+# - verificare errori API: curl -f http://127.0.0.1:8080/api/health (se disponibile)
+# - verificare stato RTC: timedatectl status e hwclock -r
+# - se roomctl non parte: controllare dipendenze Python in /opt/roomctl/.venv
 set -euo pipefail
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -118,5 +124,11 @@ systemctl enable --now roomctl.service
 
 # Installa e abilita anche il power scheduler
 bash "$APP_DIR/config/install_power_scheduler.sh"
+
+echo "[POST] Verifica servizi e API..."
+systemctl --no-pager --full status roomctl.service || true
+systemctl --no-pager --full status roomctl-power-scheduler.service || true
+systemctl --no-pager --full status roomctl-power-scheduler.timer || true
+curl --fail --silent --show-error "http://127.0.0.1:8080/" >/dev/null || true
 
 echo "Deployment completato. Servizi attivi: roomctl.service e roomctl-power-scheduler.timer"
