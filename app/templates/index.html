@@ -10,9 +10,9 @@
 
   </header>
 
-  <main class="main">
-    {# lezione attiva: "semplice", "video", "combinata" oppure None #}
-    {% set active_lesson = state.current_lesson if state and (state.current_lesson is defined) and state.current_lesson else None %}
+  {# lezione attiva: "semplice", "video", "combinata" oppure None #}
+  {% set active_lesson = state.current_lesson if state and (state.current_lesson is defined) and state.current_lesson else None %}
+  <main class="main{% if active_lesson %} has-volume{% endif %}">
 
     {% if show_combined %}
       <div class="buttons-grid">
@@ -66,6 +66,20 @@
                 {% if not active_lesson %}disabled{% endif %}>
             Fine Lezione – Spegni Aula
           </button>
+        </form>
+      </div>
+    {% endif %}
+
+    {% if active_lesson %}
+      <div class="volume-controls" aria-label="Controlli volume">
+        <div class="volume-label">Volume</div>
+        <form method="post" action="/ui/dsp/volume" class="volume-form">
+          <input type="hidden" name="delta" value="+1">
+          <button class="btn volume-btn volume-plus" type="submit">+</button>
+        </form>
+        <form method="post" action="/ui/dsp/volume" class="volume-form">
+          <input type="hidden" name="delta" value="-1">
+          <button class="btn volume-btn volume-minus" type="submit">−</button>
         </form>
       </div>
     {% endif %}

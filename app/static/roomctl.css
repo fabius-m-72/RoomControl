@@ -18,7 +18,9 @@
   /* Griglia 2x2 calcolata */
   --grid-w: calc(var(--screen-w) - (2 * var(--pad-x)));
   --grid-h: calc(var(--screen-h) - var(--header-h) - var(--footer-h) - (2 * var(--pad-y)));
-  --cell-w: calc((var(--grid-w) - var(--gap)) / 2);
+  --volume-col-w: 120px;
+  --buttons-grid-w: var(--grid-w);
+  --cell-w: calc((var(--buttons-grid-w) - var(--gap)) / 2);
   --cell-h: calc((var(--grid-h) - var(--gap)) / 2);
 }
 
@@ -64,9 +66,19 @@ button, input, select, textarea {
   color: #e2e8f0;
 }
 /* Main area */
-.main{ padding: var(--pad-y) var(--pad-x); }
+.main{
+  padding: var(--pad-y) var(--pad-x);
+  display: grid;
+  grid-template-columns: var(--grid-w);
+  gap: var(--gap);
+  align-items: center;
+}
+.main.has-volume{
+  --buttons-grid-w: calc(var(--grid-w) - var(--volume-col-w) - var(--gap));
+  grid-template-columns: var(--buttons-grid-w) var(--volume-col-w);
+}
 .buttons-grid{
-  width: var(--grid-w);
+  width: var(--buttons-grid-w);
   height: var(--grid-h);
   display: grid;
   grid-template-columns: var(--cell-w) var(--cell-w);
@@ -93,6 +105,31 @@ button, input, select, textarea {
 .btn-blue { background: #2563eb; color:#fff; }
 .btn-sand { background: #b7791f; color:#fff; }
 .btn-ice  { background: #0ea5e9; color:#fff; }
+
+.volume-controls{
+  height: var(--grid-h);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 16px;
+}
+.volume-label{
+  text-align: center;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+.volume-btn{
+  width: var(--volume-col-w);
+  height: 120px;
+  font-size: 44px;
+  border-radius: 18px;
+}
+.volume-plus{ background: #16a34a; }
+.volume-minus{ background: #ef4444; }
 
 /* Footer */
 .footer{

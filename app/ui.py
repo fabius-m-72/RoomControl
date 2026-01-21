@@ -12,6 +12,7 @@ router=APIRouter(); templates=Jinja2Templates(directory='app/templates')
 ROOMCTL_BASE=os.environ.get('ROOMCTL_BASE','http://127.0.0.1:8080')
 UI_CONFIG=os.environ.get('ROOMCTL_UI_CONFIG','/opt/roomctl/config/ui.yaml')
 CONFIG_DEV=os.environ.get('ROOMCTL_DEVICES','/opt/roomctl/config/devices.yaml')
+UI_VOLUME_BUS=os.environ.get('ROOMCTL_UI_VOLUME_BUS','out0')
 
 
 def _load_ui():
@@ -153,6 +154,10 @@ async def _safe_post(
 @router.get('/', response_class=HTMLResponse)
 async def home(req: Request, pin_error: bool = False):
     state = get_public_state()
+    try:
+        dsp_used = _get_dsp_used()
+    except Exception:
+        dsp_used = None
     return templates.TemplateResponse(
         'index.html',
         {
@@ -160,6 +165,7 @@ async def home(req: Request, pin_error: bool = False):
             'state': state,
             'show_combined': _get_show_combined(),
             'pin_error': pin_error,
+            'dsp_used': dsp_used,
         }
     )
 
@@ -230,6 +236,33 @@ async def ui_spegni_aula():
     # nessuna lezione attiva
     state["current_lesson"] = None #state.pop("current_lesson", None) per rimuovere proprio la chiave
     set_public_state(state)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post('/ui/dsp/volume')
+async def ui_dsp_volume(
+    delta: int = Form(...),
+):
+    state = _set_state_text("Regolazione volume in corso…")
+    try:
+        dsp_used = _get_dsp_used()
+    except Exception:
+        dsp_used = None
+    buses = []
+    if dsp_used:
+        buses = [bus for bus, used in dsp_used.items() if bus.startswith("out") and used]
+    if not buses:
+        buses = [UI_VOLUME_BUS]
+
+    for bus in buses:
+        error_resp = await _safe_post(
+            f"{ROOMCTL_BASE}/api/dsp/volume",
+            {"bus": bus, "delta": int(delta)},
+            "Errore regolazione volume",
+            state=state,
+        )
+        if error_resp:
+            return error_resp
     return RedirectResponse(url="/", status_code=303)
 
 
