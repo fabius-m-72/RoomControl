@@ -48,9 +48,28 @@ class RS232TCPClient:
 		self._sock = s
 
 	def close(self):
-		if self._sock:
-			try: self._sock.close()
-			finally: self._sock = None
+			if self._sock:
+					try: self._sock.close()
+					finally: self._sock = None
+
+	def check_connection(self) -> bool:
+			"""Tenta una lettura rapida per verificare se il DSP è raggiungibile."""
+
+			try:
+					self.connect()
+					resp = self.send_command(
+							self.CMD_GET_PRESET,
+							0x00,
+							0x00,
+							0x00,
+							answ_byte=1,
+							expect_reply=True,
+							expect_echo=False,
+							reply_timeout=2.0,
+					)
+					return resp is not None
+			except Exception:
+					return False
 
 	@staticmethod
 	def _build_packet(addr: int, cmd: int, d1: int, d2: int, d3: int) -> bytes:
@@ -215,31 +234,32 @@ class DSP408Client:
 	async def mute_all(self, on: bool, used_inputs: Optional[Dict[str, bool]] = None,
 					   used_outputs: Optional[Dict[str, bool]] = None) -> None:
 		def _do():
-                          in_map = used_inputs or {}
-                          out_map = used_outputs or {}
-                          print(in_map)
-                          print("--",out_map)
+			in_map = used_inputs or {}
+			out_map = used_outputs or {}
+			print(in_map)
+			print("--",out_map)
 
-                          def _as_bool(val: object, default: bool = True) -> bool:
-                                  if val is None:
-                                          return default
-                                  if isinstance(val, str):
-                                          return val.strip().lower() in ("true", "1", "on", "yes")
-                                  return bool(val)
+			def _as_bool(val: object, default: bool = True) -> bool:
+				if val is None:
+					return default
+				if isinstance(val, str):
+					return val.strip().lower() in ("true", "1", "on", "yes")
+				return bool(val)
 
-                          # IN 0..3 e OUT 0..3
-                          for ch in (0, 1, 2, 3):
-                                  ch_s = str(ch)
-                                  mute_in = bool(on) and _as_bool(in_map.get(ch_s, True))
-                                  self._cli.set_mute(is_output=False, channel=ch, mute=mute_in)
-                                  mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
-                                  self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
+			# IN 0..3 e OUT 0..3
+			for ch in (0, 1, 2, 3):
+				ch_s = str(ch)
+				mute_in = bool(on) and (_as_bool(in_map.get(ch_s, True)) or bool(on))
+				print("mute-in(",ch_s,")=",mute_in)
+				self._cli.set_mute(is_output=False, channel=ch, mute=mute_in)
+				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
+				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
 
-                          # OUT 4..7
-                          for ch in (4, 5, 6, 7):
-                                  ch_s = str(ch)
-                                  mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
-                                  self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
+			# OUT 4..7
+			for ch in (4, 5, 6, 7):
+				ch_s = str(ch)
+				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
+				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
 
 		await asyncio.to_thread(_do)
 
@@ -285,16 +305,21 @@ class DSP408Client:
 				self._cli.recall_preset(user=True, preset_index=idx)
 		await asyncio.to_thread(_do)
 
+	async def check_status(self) -> bool:
+			"""Controlla rapidamente se il DSP è online."""
+
+			return await asyncio.to_thread(self._cli.check_connection)
+
 	async def read_levels(self) -> Dict[str, Dict[str, float]]:
-		def _do() -> Dict[str, Dict[str, float]]:
-			g: Dict[str,float] = {}
-			v: Dict[str,float] = {}
-			for bus, (is_out, ch) in self.bus_map.items():
-				val = self._cli.get_gain_db(is_output=is_out, channel=ch)
-				g[bus] = val
-				v[bus] = val
-			return {"gain": g, "volume": v}
-		return await asyncio.to_thread(_do)
+			def _do() -> Dict[str, Dict[str, float]]:
+					g: Dict[str,float] = {}
+					v: Dict[str,float] = {}
+					for bus, (is_out, ch) in self.bus_map.items():
+						val = self._cli.get_gain_db(is_output=is_out, channel=ch)
+						g[bus] = val
+						v[bus] = val
+					return {"gain": g, "volume": v}
+			return await asyncio.to_thread(_do)
 
 
 

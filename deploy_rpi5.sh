@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
-# Script di deploy per Raspberry Pi 5 con Raspberry Pi OS (Bookworm)
-# Installa i pacchetti di sistema, prepara l'ambiente Python e abilita i servizi.
+# Script di deploy per Raspberry Pi 5 con Debian 13.3 (Trixie).
+# Azioni eseguite:
+# - verifica l'esecuzione come root e imposta l'ambiente non interattivo per APT
+# - aggiorna l'indice pacchetti e installa dipendenze di sistema (Python, git, rsync, curl)
+# - crea l'utente di servizio dedicato se assente
+# - sincronizza i sorgenti applicativi in /opt/roomctl ed imposta i permessi
+# - crea un virtualenv Python e installa le dipendenze applicative
+# - copia le configurazioni di default senza sovrascrivere le esistenti
+# - configura il boot (schermata nera, rotazione display/touch, ricarica batteria RTC)
+# - abilita la modalità kiosk con Chromium via servizio systemd dedicato
+# - installa e abilita i servizi systemd (roomctl e power scheduler)
+# Note manutenzione:
+# - per uscire dal kiosk usare Ctrl+Alt+F2, fare login come amministratore
+# - per fermare temporaneamente il kiosk: systemctl stop kiosk.service
+# - per riattivarlo: systemctl restart kiosk.service
+# - per disabilitare l'autostart di Chromium: systemctl disable --now kiosk.service
+# - log utili: journalctl -b -u kiosk.service e /home/kiosk/.local/share/kiosk-xorg.log
 set -euo pipefail
 
 if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
@@ -12,10 +27,15 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/roomctl"
 SYSTEM_USER="roomctl"
 PYTHON_BIN="python3"
+BOOT_CONFIG="/boot/firmware/config.txt"
+CMDLINE_FILE="/boot/firmware/cmdline.txt"
+KIOSK_USER="kiosk"
+KIOSK_APP_URL="http://127.0.0.1:8080"
+KIOSK_SERVICE="/etc/systemd/system/kiosk.service"
 
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[1/6] Installazione pacchetti di sistema..."
+echo "[1/8] Installazione pacchetti di sistema..."
 apt-get update
 apt-get install -y \
   python3 \
@@ -23,14 +43,21 @@ apt-get install -y \
   python3-pip \
   git \
   rsync \
-  curl
+  curl \
+  chromium \
+  dbus-x11 \
+  xauth \
+  xserver-xorg \
+  xserver-xorg-legacy \
+  xinit \
+  x11-xserver-utils
 
 if ! id -u "$SYSTEM_USER" >/dev/null 2>&1; then
-  echo "[2/6] Creo l'utente di servizio $SYSTEM_USER..."
+  echo "[2/8] Creo l'utente di servizio $SYSTEM_USER..."
   useradd --system --create-home --shell /usr/sbin/nologin "$SYSTEM_USER"
 fi
 
-echo "[3/6] Sincronizzo i sorgenti in $APP_DIR..."
+echo "[3/8] Sincronizzo i sorgenti in $APP_DIR..."
 install -d "$APP_DIR"
 rsync -a --delete \
   --exclude ".git" \
@@ -41,7 +68,7 @@ chown -R "$SYSTEM_USER:$SYSTEM_USER" "$APP_DIR"
 
 VENV_DIR="$APP_DIR/.venv"
 if [[ ! -d "$VENV_DIR" ]]; then
-  echo "[4/6] Creo l'ambiente virtuale Python..."
+  echo "[4/8] Creo l'ambiente virtuale Python..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
@@ -52,6 +79,7 @@ fi
   httpx \
   PyYAML \
   python-multipart \
+  requests \
   jinja2
 
 copy_if_absent() {
@@ -65,7 +93,7 @@ copy_if_absent() {
 }
 
 copy_defaults() {
-  echo "[5/6] Copio le configurazioni di default (senza sovrascrivere le esistenti)..."
+  echo "[5/8] Copio le configurazioni di default (senza sovrascrivere le esistenti)..."
   copy_if_absent "$SCRIPT_DIR/config/config.yaml" "$APP_DIR/config/config.yaml"
   copy_if_absent "$SCRIPT_DIR/config/devices.yaml" "$APP_DIR/config/devices.yaml"
   copy_if_absent "$SCRIPT_DIR/config/ui.yaml" "$APP_DIR/config/ui.yaml"
@@ -75,13 +103,150 @@ copy_defaults() {
 copy_defaults
 chown -R "$SYSTEM_USER:$SYSTEM_USER" "$APP_DIR/config"
 
+ensure_config_setting() {
+  local key="$1" value="$2"
+  if [[ -f "$BOOT_CONFIG" ]]; then
+    if grep -qE "^${key}=" "$BOOT_CONFIG"; then
+      sed -i "s|^${key}=.*|${key}=${value}|" "$BOOT_CONFIG"
+    else
+      echo "${key}=${value}" >> "$BOOT_CONFIG"
+    fi
+  fi
+}
+
+ensure_dtparam_setting() {
+  local param="$1" value="$2"
+  if [[ -f "$BOOT_CONFIG" ]]; then
+    if grep -qE "^dtparam=.*\\b${param}=" "$BOOT_CONFIG"; then
+      sed -i -E "s/^(dtparam=.*)${param}=[^,]+/\\1${param}=${value}/" "$BOOT_CONFIG"
+    else
+      echo "dtparam=${param}=${value}" >> "$BOOT_CONFIG"
+    fi
+  fi
+}
+
+update_cmdline() {
+  if [[ ! -f "$CMDLINE_FILE" ]]; then
+    return
+  fi
+
+  local cmdline
+  cmdline="$(tr -d '\n' < "$CMDLINE_FILE")"
+  local tokens=($cmdline)
+  local updated=()
+  for token in "${tokens[@]}"; do
+    case "$token" in
+      console=tty1|console=serial0,115200)
+        continue
+        ;;
+      *)
+        updated+=("$token")
+        ;;
+    esac
+  done
+
+  add_token() {
+    local value="$1"
+    for existing in "${updated[@]}"; do
+      if [[ "$existing" == "$value" ]]; then
+        return
+      fi
+    done
+    updated+=("$value")
+  }
+
+  add_token "quiet"
+  add_token "loglevel=0"
+  add_token "logo.nologo"
+  add_token "vt.global_cursor_default=0"
+  add_token "plymouth.enable=0"
+  add_token "fbcon=rotate:1"
+
+  printf '%s\n' "${updated[*]}" > "$CMDLINE_FILE"
+}
+
+echo "[6/8] Configuro boot (schermata nera, rotazione, RTC)..."
+ensure_config_setting "disable_splash" "1"
+ensure_config_setting "display_rotate" "1"
+ensure_config_setting "lcd_rotate" "1"
+ensure_dtparam_setting "rtc_bbat_vchg" "3000000"
+update_cmdline
+
+echo "[7/8] Configuro modalità kiosk (Chromium)..."
+if ! id -u "$KIOSK_USER" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash "$KIOSK_USER"
+fi
+KIOSK_UID="$(id -u "$KIOSK_USER")"
+
+install -d /etc/X11/xorg.conf.d
+cat > /etc/X11/xorg.conf.d/40-touchscreen-rotate.conf <<'EOF'
+Section "InputClass"
+    Identifier "Touchscreen Rotation"
+    MatchIsTouchscreen "on"
+    Option "CalibrationMatrix" "0 1 0 -1 0 1 0 0 1"
+EndSection
+EOF
+
+cat > "/home/${KIOSK_USER}/.xinitrc" <<EOF
+#!/usr/bin/env bash
+xset s off
+xset -dpms
+xset s noblank
+exec dbus-run-session -- \
+  chromium --kiosk --app=${KIOSK_APP_URL} --noerrdialogs --disable-infobars --disable-session-crashed-bubble
+EOF
+
+install -d "/home/${KIOSK_USER}/.local/share"
+touch "/home/${KIOSK_USER}/.Xauthority"
+
+chown "$KIOSK_USER:$KIOSK_USER" \
+  "/home/${KIOSK_USER}/.xinitrc" \
+  "/home/${KIOSK_USER}/.local/share" \
+  "/home/${KIOSK_USER}/.Xauthority"
+chmod 755 "/home/${KIOSK_USER}/.xinitrc"
+
+cat > "$KIOSK_SERVICE" <<EOF
+[Unit]
+Description=Chromium Kiosk
+After=systemd-user-sessions.service network-online.target roomctl.service
+Wants=network-online.target roomctl.service
+
+[Service]
+User=${KIOSK_USER}
+PermissionsStartOnly=true
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+TTYReset=yes
+TTYVHangup=yes
+Environment=XDG_RUNTIME_DIR=/run/user/${KIOSK_UID}
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/${KIOSK_USER}/.Xauthority
+ExecStartPre=/usr/bin/install -d -m 700 -o ${KIOSK_USER} -g ${KIOSK_USER} /run/user/${KIOSK_UID}
+ExecStart=/usr/bin/xinit /home/${KIOSK_USER}/.xinitrc -- /usr/lib/xorg/Xorg :0 -nolisten tcp -nocursor -keeptty vt1 -logfile /home/${KIOSK_USER}/.local/share/kiosk-xorg.log
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl stop kiosk.service || true
+systemctl disable --now getty@tty1 || true
+cat > /etc/X11/Xwrapper.config <<'EOF'
+allowed_users=anybody
+needs_root_rights=yes
+EOF
+systemctl daemon-reload
+systemctl reset-failed kiosk.service || true
+systemctl enable --now kiosk.service
+
 install_systemd_unit() {
   local unit_src="$1" unit_dst="$2"
   install -m 644 "$unit_src" "$unit_dst"
   echo "  - Installato $(basename "$unit_dst")"
 }
 
-echo "[6/6] Configuro i servizi systemd..."
+echo "[8/8] Configuro i servizi systemd..."
 install_systemd_unit "$APP_DIR/config/roomctl.service" /etc/systemd/system/roomctl.service
 systemctl daemon-reload
 systemctl enable --now roomctl.service
