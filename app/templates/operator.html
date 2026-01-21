@@ -623,9 +623,23 @@
         <form method="post" action="/operator/power_schedule" class="column gap8 power-schedule-form">
           <div class="row wrap gap12 align-center">
             <label class="op-label small">Accensione</label>
-            <input type="time" name="on_time" value="{{ sched_on }}" class="input-time num-pad-input" inputmode="numeric">
+            <input type="text"
+                   name="on_time"
+                   value="{{ sched_on }}"
+                   class="input-time num-pad-input"
+                   inputmode="numeric"
+                   maxlength="5"
+                   pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                   placeholder="hh:mm">
             <label class="op-label small">Spegnimento</label>
-            <input type="time" name="off_time" value="{{ sched_off }}" class="input-time num-pad-input" inputmode="numeric">
+            <input type="text"
+                   name="off_time"
+                   value="{{ sched_off }}"
+                   class="input-time num-pad-input"
+                   inputmode="numeric"
+                   maxlength="5"
+                   pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                   placeholder="hh:mm">
             <label class="op-label small row align-center gap4">
               <input type="checkbox" name="enabled" value="true" {% if sched_enabled %}checked{% endif %}>
               <span>Abilitato</span>
@@ -655,9 +669,23 @@
         <form method="post" action="/ui/special/set_datetime" class="column gap8">
           <div class="row wrap gap12 align-center">
             <label class="op-label small" for="rtc-date">Data</label>
-            <input id="rtc-date" type="date" name="date" class="input-time num-pad-input" inputmode="numeric">
+            <input id="rtc-date"
+                   type="text"
+                   name="date"
+                   class="input-time num-pad-input"
+                   inputmode="numeric"
+                   maxlength="10"
+                   pattern="^\\d{4}-\\d{2}-\\d{2}$"
+                   placeholder="yyyy-mm-dd">
             <label class="op-label small" for="rtc-time">Ora</label>
-            <input id="rtc-time" type="time" name="time" class="input-time num-pad-input" step="60" inputmode="numeric">
+            <input id="rtc-time"
+                   type="text"
+                   name="time"
+                   class="input-time num-pad-input"
+                   inputmode="numeric"
+                   maxlength="5"
+                   pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                   placeholder="hh:mm">
             <button class="btn-mini" type="submit">Imposta data/ora</button>
             <span class="op-label small">
               Vbat RTC:
