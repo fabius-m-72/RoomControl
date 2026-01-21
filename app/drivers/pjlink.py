@@ -2,18 +2,58 @@
 import asyncio, hashlib, re
 from typing import Optional
 
+class PJLinkError(RuntimeError):
+    """Errore generico PJLink."""
+
+
+class PJLinkConnectionError(PJLinkError):
+    """Errore di connessione verso il proiettore."""
+
+    def __init__(self, host: str, port: int, message: str, cause: BaseException):
+        self.host = host
+        self.port = port
+        self.cause = cause
+        base = message or ""
+        formatted = f"Connessione PJLink fallita verso {self.host}:{self.port}: {base}"
+        if base:
+            formatted += "; verifica indirizzo IP/rete del proiettore"
+        super().__init__(formatted)
+
+
 class PJLinkClient:
-    def __init__(self, host: str="192.168.1.200", port: int = 4352, password: str = "1234", timeout: float = 8.0, retries: int = 4):
+    def __init__(
+        self,
+        host: str = "192.168.1.220",
+        port: int = 4352,
+        password: str = "1234",
+        timeout: float = 8.0,
+        retries: int = 4,
+        ping_check: bool = True,
+    ):
         self.host = host
         self.port = port
         self.password = password or ""
         self.timeout = timeout
         self.retries = retries
+        self.ping_check = ping_check
         # mappa sorgenti: adatta se il tuo modello usa codici diversi
         self.input_map = {"Computer1": "11","Computer2": "12", "HDMI1": "32", "HDMI2": "33", "HDBaseT": "56"}
 
     async def _open(self):
-        return await asyncio.wait_for(asyncio.open_connection(self.host, self.port), self.timeout)
+        if self.ping_check and not await self._preflight_ping():
+            raise PJLinkConnectionError(
+                self.host,
+                self.port,
+                "Host non raggiungibile (ping fallito)",
+                ConnectionError("Ping fallito"),
+            )
+        try:
+            return await asyncio.wait_for(
+                asyncio.open_connection(self.host, self.port),
+                self.timeout,
+            )
+        except (asyncio.TimeoutError, OSError) as exc:
+            raise PJLinkConnectionError(self.host, self.port, str(exc), exc) from exc
 
     async def _handshake(self, r: asyncio.StreamReader, w: asyncio.StreamWriter):
         # Legge il banner: "PJLINK 0" oppure "PJLINK 1 xxxxxxxx\r"
@@ -22,7 +62,7 @@ class PJLinkClient:
         # print("PJLINK banner:", text)
         m = re.match(r"PJLINK\s+(\d)(?:\s+([0-9A-Fa-f]+))?", text)
         if not m:
-            raise RuntimeError(f"Banner PJLINK non valido: {text}")
+            raise PJLinkError(f"Banner PJLINK non valido: {text}")
         need_auth = m.group(1) == "1"
         rand = m.group(2) or ""
         return need_auth, rand
@@ -42,7 +82,7 @@ class PJLinkClient:
                     if not self.password:
                         w.close()
                         await w.wait_closed()
-                        raise RuntimeError("PJLink richiede password ma non è configurata.")
+                        raise PJLinkError("PJLink richiede password ma non è configurata.")
                     # MD5( rand + password + payload_senza_CR )
                     to_hash = (rand + self.password).encode()
                     auth = hashlib.md5(to_hash).hexdigest()
@@ -58,10 +98,45 @@ class PJLinkClient:
                 except Exception:
                     pass
                 return resp.decode(errors="ignore").strip()
-            except Exception as e:
-                last_exc = e
+            except PJLinkConnectionError as exc:
+                last_exc = exc
+                # Se la rete non è raggiungibile (es. ENETUNREACH/113) non insistiamo
+                errno = getattr(exc.cause, "errno", None)
+                if errno in {101, 113}:  # network unreachable / no route to host
+                    break
                 await asyncio.sleep(0.4 * (attempt + 1))  # backoff breve
-        raise last_exc or RuntimeError("Errore PJLink sconosciuto")
+            except Exception as exc:
+                last_exc = exc
+                await asyncio.sleep(0.4 * (attempt + 1))  # backoff breve
+        if isinstance(last_exc, PJLinkError):
+            raise last_exc
+        raise PJLinkError("Errore PJLink sconosciuto") from last_exc
+
+    async def _preflight_ping(self) -> bool:
+        """Esegue un ping veloce (1 pacchetto, 1s) prima di aprire la connessione."""
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "ping",
+                "-c",
+                "1",
+                "-W",
+                "1",
+                self.host,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2)
+            except asyncio.TimeoutError:
+                proc.kill()
+                return False
+            return proc.returncode == 0
+        except FileNotFoundError:
+            # Ping non presente: ignora pre-check
+            return True
+        except Exception:
+            return False
 
     async def power(self, on: bool) -> bool:
         # POWR 1/0
