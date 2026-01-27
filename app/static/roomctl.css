@@ -65,6 +65,12 @@ button, input, select, textarea {
 }
 /* Main area */
 .main{ padding: var(--pad-y) var(--pad-x); }
+.controls-grid{
+  height: var(--grid-h);
+  display: flex;
+  gap: var(--gap);
+  align-items: stretch;
+}
 .buttons-grid{
   width: var(--grid-w);
   height: var(--grid-h);
@@ -93,6 +99,28 @@ button, input, select, textarea {
 .btn-blue { background: #2563eb; color:#fff; }
 .btn-sand { background: #b7791f; color:#fff; }
 .btn-ice  { background: #0ea5e9; color:#fff; }
+
+.volume-column{
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  width: 160px;
+}
+.volume-form{ flex: 1 1 0; display: flex; }
+.btn-volume{
+  flex: 1 1 auto;
+  width: 100%;
+  border-radius: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  background: #334155;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.2);
+}
+.btn-volume.active{
+  background: #16a34a;
+  box-shadow: 0 8px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.3);
+}
 
 /* Footer */
 .footer{

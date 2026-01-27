@@ -3,7 +3,8 @@ _state={
     'dsp':{'state':'OK'},
     'shelly':{'main':'OK', 'telo':'OK'},
     'text':'Sistema pronto',
-    'current_lesson':''
+    'current_lesson':'',
+    'volume_preset': None,
 }
 
 def set_public_state(d): _state.update(d)

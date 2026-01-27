@@ -177,6 +177,7 @@ async def ui_avvio_semplice():
 
     state["text"] = "Avviata lezione solo audio"
     state["current_lesson"] = "semplice"
+    state["volume_preset"] = None
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -195,6 +196,7 @@ async def ui_avvio_video():
 
     state["text"] = "Lezione video avviata"
     state["current_lesson"] = "video"
+    state["volume_preset"] = None
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -213,6 +215,7 @@ async def ui_avvio_video_combinata():
 
     state["text"] = "Lezione video combinata avviata"
     state["current_lesson"] = "combinata"
+    state["volume_preset"] = None
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -229,6 +232,29 @@ async def ui_spegni_aula():
     state["text"] = "Aula spenta: sistema pronto"
     # nessuna lezione attiva
     state["current_lesson"] = None #state.pop("current_lesson", None) per rimuovere proprio la chiave
+    state["volume_preset"] = None
+    set_public_state(state)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/ui/dsp/volume_preset")
+async def ui_dsp_volume_preset(
+    preset: str = Form(...),
+):
+    state = get_public_state()
+    if not state.get("current_lesson"):
+        return RedirectResponse(url="/", status_code=303)
+
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": preset},
+        "Errore richiamo preset DSP",
+        state=state,
+    )
+    if error_resp:
+        return error_resp
+
+    state["volume_preset"] = preset
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
