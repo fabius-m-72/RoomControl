@@ -14,59 +14,86 @@
     {# lezione attiva: "semplice", "video", "combinata" oppure None #}
     {% set active_lesson = state.current_lesson if state and (state.current_lesson is defined) and state.current_lesson else None %}
 
+    {% set volume_preset = state.volume_preset if state and (state.volume_preset is defined) else None %}
     {% if show_combined %}
-      <div class="buttons-grid">
-        <form method="post" action="/ui/scene/avvio_semplice" class="scene-form">
-          <button class="btn btn-green"
-                  {% if active_lesson %}disabled{% endif %}>
-            Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
-          </button>
-        </form>
+      <div class="controls-grid">
+        <div class="buttons-grid">
+          <form method="post" action="/ui/scene/avvio_semplice" class="scene-form">
+            <button class="btn btn-green"
+                    {% if active_lesson %}disabled{% endif %}>
+              Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
+            </button>
+          </form>
 
-        <form method="post" action="/ui/scene/avvio_video" class="scene-form">
-          <button class="btn btn-blue"
-                  {% if active_lesson %}disabled{% endif %}>
-            Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
-          </button>
-        </form>
+          <form method="post" action="/ui/scene/avvio_video" class="scene-form">
+            <button class="btn btn-blue"
+                    {% if active_lesson %}disabled{% endif %}>
+              Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
+            </button>
+          </form>
 
 
-        <form method="post" action="/ui/scene/avvio_video_combinata" class="scene-form">
-          <button class="btn btn-ice"
-                  {% if active_lesson %}disabled{% endif %}>
-            Avvio Lezione<br>Video Combinata{% if active_lesson == 'combinata' %} ...in corso{% endif %}
-          </button>
-        </form>
+          <form method="post" action="/ui/scene/avvio_video_combinata" class="scene-form">
+            <button class="btn btn-ice"
+                    {% if active_lesson %}disabled{% endif %}>
+              Avvio Lezione<br>Video Combinata{% if active_lesson == 'combinata' %} ...in corso{% endif %}
+            </button>
+          </form>
 
-        <form method="post" action="/ui/scene/spegni_aula" class="scene-form" >
-          <button class="btn btn-sand"
-                    {% if not active_lesson %}disabled{% endif %}>
-            Fine Lezione – Spegni Aula
-          </button>
-        </form>
+          <form method="post" action="/ui/scene/spegni_aula" class="scene-form" >
+            <button class="btn btn-sand"
+                      {% if not active_lesson %}disabled{% endif %}>
+              Fine Lezione – Spegni Aula
+            </button>
+          </form>
+        </div>
+
+        <div class="volume-column" aria-label="Selezione volume">
+          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
+          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
+            <input type="hidden" name="preset" value="{{ preset }}">
+            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
+              {{ label }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
       </div>
     {% else %}
-      <div class="buttons-grid">
-        <form method="post" action="/ui/scene/avvio_semplice" class="scene-form">
-          <button class="btn btn-green"
-                  {% if active_lesson %}disabled{% endif %}>
-            Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
-          </button>
-        </form>
+      <div class="controls-grid">
+        <div class="buttons-grid">
+          <form method="post" action="/ui/scene/avvio_semplice" class="scene-form">
+            <button class="btn btn-green"
+                    {% if active_lesson %}disabled{% endif %}>
+              Avvio Lezione Semplice{% if active_lesson == 'semplice' %} ...in corso{% endif %}
+            </button>
+          </form>
 
-        <form method="post" action="/ui/scene/avvio_video" class="scene-form">
-          <button class="btn btn-blue"
-                  {% if active_lesson %}disabled{% endif %}>
-            Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
-          </button>
-        </form>
-      
-        <form method="post" action="/ui/scene/spegni_aula" class="scene-form btn-span-2">
-          <button class="btn btn-sand btn-span-2"
-                {% if not active_lesson %}disabled{% endif %}>
-            Fine Lezione – Spegni Aula
-          </button>
-        </form>
+          <form method="post" action="/ui/scene/avvio_video" class="scene-form">
+            <button class="btn btn-blue"
+                    {% if active_lesson %}disabled{% endif %}>
+              Avvio Lezione Video{% if active_lesson == 'video' %} ...in corso{% endif %}
+            </button>
+          </form>
+        
+          <form method="post" action="/ui/scene/spegni_aula" class="scene-form btn-span-2">
+            <button class="btn btn-sand btn-span-2"
+                  {% if not active_lesson %}disabled{% endif %}>
+              Fine Lezione – Spegni Aula
+            </button>
+          </form>
+        </div>
+
+        <div class="volume-column" aria-label="Selezione volume">
+          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
+          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
+            <input type="hidden" name="preset" value="{{ preset }}">
+            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
+              {{ label }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
       </div>
     {% endif %}
   </main>
