@@ -48,18 +48,16 @@
           </form>
         </div>
 
-        {% if active_lesson %}
-          <div class="volume-column" aria-label="Selezione volume">
-            {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
-            <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
-              <input type="hidden" name="preset" value="{{ preset }}">
-              <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
-                {{ label }}
-              </button>
-            </form>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <div class="volume-column" aria-label="Selezione volume">
+          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
+          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
+            <input type="hidden" name="preset" value="{{ preset }}">
+            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
+              {{ label }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
       </div>
     {% else %}
       <div class="controls-grid">
@@ -86,18 +84,16 @@
           </form>
         </div>
 
-        {% if active_lesson %}
-          <div class="volume-column" aria-label="Selezione volume">
-            {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
-            <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
-              <input type="hidden" name="preset" value="{{ preset }}">
-              <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
-                {{ label }}
-              </button>
-            </form>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <div class="volume-column" aria-label="Selezione volume">
+          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
+          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
+            <input type="hidden" name="preset" value="{{ preset }}">
+            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
+              {{ label }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
       </div>
     {% endif %}
   </main>

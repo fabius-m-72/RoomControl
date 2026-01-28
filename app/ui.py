@@ -257,9 +257,6 @@ async def ui_dsp_volume_preset(
     preset: str = Form(...),
 ):
     state = get_public_state()
-    if not state.get("current_lesson"):
-        return RedirectResponse(url="/", status_code=303)
-
     return await _handle_dsp_recall(preset, state=state, redirect="/")
 
 
