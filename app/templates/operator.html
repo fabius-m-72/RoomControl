@@ -83,13 +83,6 @@
             </button>
           </form>
 
-          <!-- GAIN - -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_a">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in0 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_a" in dsp_levels %}
@@ -98,13 +91,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <!-- GAIN + -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_a">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in0 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -122,13 +108,6 @@
             </button>
           </form>
 
-          <!-- GAIN - -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_b">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in1 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_b" in dsp_levels %}
@@ -137,13 +116,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <!-- GAIN + -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_b">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in1 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
@@ -164,13 +136,6 @@
             </button>
           </form>
 
-          <!-- GAIN - -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_c">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in2 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_c" in dsp_levels %}
@@ -179,13 +144,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <!-- GAIN + -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_c">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in2 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -203,13 +161,6 @@
             </button>
           </form>
 
-          <!-- GAIN - -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_d">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in3 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_d" in dsp_levels %}
@@ -218,13 +169,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <!-- GAIN + -->
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="in_d">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_in3 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
@@ -247,12 +191,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out0">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out0 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out0" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out0"]["gain"] or 0.0) }}&nbsp;dB
@@ -260,12 +198,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out0">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out0 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -282,12 +214,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out1">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out1 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out1" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out1"]["gain"] or 0.0) }}&nbsp;dB
@@ -295,12 +221,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out1">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out1 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
@@ -320,12 +240,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out2">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out2 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out2" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out2"]["gain"] or 0.0) }}&nbsp;dB
@@ -333,12 +247,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out2">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out2 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -355,12 +263,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out3">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out3 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out3" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out3"]["gain"] or 0.0) }}&nbsp;dB
@@ -368,12 +270,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out3">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out3 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
@@ -393,12 +289,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out4">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out4 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out4" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out4"]["gain"] or 0.0) }}&nbsp;dB
@@ -406,12 +296,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out4">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out4 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -428,12 +312,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out5">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out5 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out5" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out5"]["gain"] or 0.0) }}&nbsp;dB
@@ -441,12 +319,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out5">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out5 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
@@ -466,12 +338,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out6">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out6 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out6" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out6"]["gain"] or 0.0) }}&nbsp;dB
@@ -479,12 +345,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out6">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out6 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
 
@@ -501,12 +361,6 @@
             </button>
           </form>
 
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out7">
-            <input type="hidden" name="delta" value="-1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out7 else '' }}">GAIN&nbsp;−</button>
-          </form>
-
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out7" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out7"]["gain"] or 0.0) }}&nbsp;dB
@@ -514,12 +368,6 @@
               &mdash;
             {% endif %}
           </span>
-
-          <form method="post" action="/operator/dsp/gain" class="row gap4">
-            <input type="hidden" name="bus" value="out7">
-            <input type="hidden" name="delta" value="+1">
-            <button class="btn-mini w-full {{ 'disabled' if not used_out7 else '' }}">GAIN&nbsp;+</button>
-          </form>
         </div>
       </div>
     </div>
