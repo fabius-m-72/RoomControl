@@ -104,23 +104,27 @@ button, input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-  width: 160px;
+  width: 240px;
+  height: calc((var(--cell-h) * 2) + var(--gap));
 }
 .volume-form{ flex: 1 1 0; display: flex; }
 .btn-volume{
   flex: 1 1 auto;
   width: 100%;
-  border-radius: 20px;
-  font-size: 24px;
-  font-weight: 700;
-  background: #334155;
+  border-radius: 26px;
+  font-size: 32px;
+  font-weight: 800;
+  background: #6b7280;
   color: #fff;
   box-shadow: 0 6px 14px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.2);
 }
 .btn-volume.active{
-  background: #16a34a;
-  box-shadow: 0 8px 18px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.3);
+  box-shadow: 0 10px 20px rgba(0,0,0,.4), inset 0 0 0 3px rgba(255,255,255,.35);
 }
+.btn-volume.vol-1{ background: #9a6b00; }
+.btn-volume.vol-2{ background: #b45309; }
+.btn-volume.vol-3{ background: #c2410c; }
+.btn-volume.vol-4{ background: #b91c1c; }
 
 /* Footer */
 .footer{

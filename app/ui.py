@@ -150,6 +150,21 @@ async def _safe_post(
 
     return None
 
+async def _handle_dsp_recall(preset: str, *, state: dict, redirect: str):
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": preset},
+        "Errore richiamo preset DSP",
+        state=state,
+        redirect=redirect,
+    )
+    if error_resp:
+        return error_resp
+
+    state["volume_preset"] = preset
+    set_public_state(state)
+    return RedirectResponse(url=redirect, status_code=303)
+
 @router.get('/', response_class=HTMLResponse)
 async def home(req: Request, pin_error: bool = False):
     state = get_public_state()
@@ -245,18 +260,7 @@ async def ui_dsp_volume_preset(
     if not state.get("current_lesson"):
         return RedirectResponse(url="/", status_code=303)
 
-    error_resp = await _safe_post(
-        f"{ROOMCTL_BASE}/api/dsp/recall",
-        {"preset": preset},
-        "Errore richiamo preset DSP",
-        state=state,
-    )
-    if error_resp:
-        return error_resp
-
-    state["volume_preset"] = preset
-    set_public_state(state)
-    return RedirectResponse(url="/", status_code=303)
+    return await _handle_dsp_recall(preset, state=state, redirect="/")
 
 
 @router.post('/auth/pin')
@@ -435,15 +439,8 @@ async def op_dsp_recall(
     """
     Handler per i pulsanti Recall preset (F00, U01, U02, U03).
     """
-    resp = await _safe_post(
-        f"{ROOMCTL_BASE}/api/dsp/recall",
-        {"preset": preset},
-        "Errore richiamo preset DSP",
-        redirect="/operator",
-    )
-    if resp:
-        return resp
-    return RedirectResponse("/operator", status_code=303)
+    state = get_public_state()
+    return await _handle_dsp_recall(preset, state=state, redirect="/operator")
 
 @router.post('/operator/shelly/set')
 async def op_shelly_set(sid:str=Form(...),on:bool=Form(...),_=Depends(require_operator)):
