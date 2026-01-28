@@ -66,13 +66,16 @@ button, input, select, textarea {
 /* Main area */
 .main{ padding: var(--pad-y) var(--pad-x); }
 .controls-grid{
+  --buttons-grid-w: calc(var(--screen-w) - (2 * var(--pad-x)) - 240px - var(--gap));
+  --cell-w: calc((var(--buttons-grid-w) - var(--gap)) / 2);
   height: var(--grid-h);
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--buttons-grid-w) 240px;
   gap: var(--gap);
   align-items: stretch;
 }
 .buttons-grid{
-  width: var(--grid-w);
+  width: var(--buttons-grid-w);
   height: var(--grid-h);
   display: grid;
   grid-template-columns: var(--cell-w) var(--cell-w);
