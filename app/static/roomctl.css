@@ -1,9 +1,9 @@
 :root{
   /* === PARAMETRI PER 1080x720 LANDSCAPE ===++ */
-  --screen-w: 1080px;     /* larghezza schermo */
+  --screen-w: 1280px;     /* larghezza schermo */
   --screen-h: 720px;      /* altezza schermo  */
-  --pad-x: 20px;          /* padding orizzontale */
-  --pad-y: 14px;          /* padding verticale   */
+  --pad-x: 10px;          /* padding orizzontale */
+  --pad-y: 10px;          /* padding verticale   */
   --font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 
   --header-h: 64px;       /* altezza header */
@@ -65,8 +65,18 @@ button, input, select, textarea {
 }
 /* Main area */
 .main{ padding: var(--pad-y) var(--pad-x); }
+.controls-grid{
+  --vol-col-w: 100px;
+  --buttons-grid-w: calc(var(--screen-w) - (2 * var(--pad-x)) - var(--vol-col-w) - var(--gap));
+  --cell-w: calc((var(--buttons-grid-w) - var(--gap)) / 2);
+  height: var(--grid-h);
+  display: grid;
+  grid-template-columns: var(--buttons-grid-w) var(--vol-col-w);
+  gap: var(--gap);
+  align-items: stretch;
+}
 .buttons-grid{
-  width: var(--grid-w);
+  width: var(--buttons-grid-w);
   height: var(--grid-h);
   display: grid;
   grid-template-columns: var(--cell-w) var(--cell-w);
@@ -93,6 +103,32 @@ button, input, select, textarea {
 .btn-blue { background: #2563eb; color:#fff; }
 .btn-sand { background: #b7791f; color:#fff; }
 .btn-ice  { background: #0ea5e9; color:#fff; }
+
+.volume-column{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: var(--vol-col-w);
+  height: calc((var(--cell-h) * 2) + var(--gap));
+}
+.volume-form{ display: flex; }
+.btn-volume{
+  height: calc(var(--cell-h) - 20px);
+  width: 100%;
+  border-radius: 26px;
+  font-size: 24px;
+  font-weight: 800;
+  background: #6b7280;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(0,0,0,.35), inset 0 0 0 2px rgba(255,255,255,.2);
+}
+.btn-volume:disabled{
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-volume.vol-step{
+  background: #b45309;
+}
 
 /* Footer */
 .footer{
