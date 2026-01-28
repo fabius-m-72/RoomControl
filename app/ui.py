@@ -260,6 +260,28 @@ async def ui_dsp_volume_preset(
     if not state.get("current_lesson"):
         return RedirectResponse(url="/", status_code=303)
 
+    error_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": preset},
+        "Errore richiamo preset DSP",
+        state=state,
+    )
+    if error_resp:
+        return error_resp
+
+    state["volume_preset"] = preset
+    set_public_state(state)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/ui/dsp/volume_preset")
+async def ui_dsp_volume_preset(
+    preset: str = Form(...),
+):
+    state = get_public_state()
+    if not state.get("current_lesson"):
+        return RedirectResponse(url="/", status_code=303)
+
     return await _handle_dsp_recall(preset, state=state, redirect="/")
 
 
