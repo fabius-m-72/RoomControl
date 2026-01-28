@@ -49,14 +49,20 @@
         </div>
 
         <div class="volume-column" aria-label="Selezione volume">
-          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
-          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
-            <input type="hidden" name="preset" value="{{ preset }}">
-            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
-              {{ label }}
+          <form method="post" action="/ui/dsp/volume_step" class="volume-form">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn-volume vol-step"
+                    {% if not active_lesson %}disabled{% endif %}>
+              VOL +
             </button>
           </form>
-          {% endfor %}
+          <form method="post" action="/ui/dsp/volume_step" class="volume-form">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn-volume vol-step"
+                    {% if not active_lesson %}disabled{% endif %}>
+              VOL -
+            </button>
+          </form>
         </div>
       </div>
     {% else %}
@@ -85,14 +91,20 @@
         </div>
 
         <div class="volume-column" aria-label="Selezione volume">
-          {% for label, preset, cls in [('Vol. 1','U01','vol-1'), ('Vol. 2','U02','vol-2'), ('Vol. 3','U03','vol-3'), ('Vol. 4','U04','vol-4')] %}
-          <form method="post" action="/ui/dsp/volume_preset" class="volume-form">
-            <input type="hidden" name="preset" value="{{ preset }}">
-            <button class="btn-volume {{ cls }} {% if volume_preset == preset %}active{% endif %}">
-              {{ label }}
+          <form method="post" action="/ui/dsp/volume_step" class="volume-form">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn-volume vol-step"
+                    {% if not active_lesson %}disabled{% endif %}>
+              VOL +
             </button>
           </form>
-          {% endfor %}
+          <form method="post" action="/ui/dsp/volume_step" class="volume-form">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn-volume vol-step"
+                    {% if not active_lesson %}disabled{% endif %}>
+              VOL -
+            </button>
+          </form>
         </div>
       </div>
     {% endif %}

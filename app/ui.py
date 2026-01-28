@@ -190,9 +190,18 @@ async def ui_avvio_semplice():
     if error_resp:
         return error_resp
 
+    preset_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": "U02"},
+        "Errore richiamo preset DSP",
+        state=state,
+    )
+    if preset_resp:
+        return preset_resp
+
     state["text"] = "Avviata lezione solo audio"
     state["current_lesson"] = "semplice"
-    state["volume_preset"] = None
+    state["volume_preset"] = "U02"
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -209,9 +218,18 @@ async def ui_avvio_video():
     if error_resp:
         return error_resp
 
+    preset_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": "U02"},
+        "Errore richiamo preset DSP",
+        state=state,
+    )
+    if preset_resp:
+        return preset_resp
+
     state["text"] = "Lezione video avviata"
     state["current_lesson"] = "video"
-    state["volume_preset"] = None
+    state["volume_preset"] = "U02"
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -228,9 +246,18 @@ async def ui_avvio_video_combinata():
     if error_resp:
         return error_resp
 
+    preset_resp = await _safe_post(
+        f"{ROOMCTL_BASE}/api/dsp/recall",
+        {"preset": "U02"},
+        "Errore richiamo preset DSP",
+        state=state,
+    )
+    if preset_resp:
+        return preset_resp
+
     state["text"] = "Lezione video combinata avviata"
     state["current_lesson"] = "combinata"
-    state["volume_preset"] = None
+    state["volume_preset"] = "U02"
     set_public_state(state)
     return RedirectResponse(url="/", status_code=303)
 
@@ -252,12 +279,23 @@ async def ui_spegni_aula():
     return RedirectResponse(url="/", status_code=303)
 
 
-@router.post("/ui/dsp/volume_preset")
-async def ui_dsp_volume_preset(
-    preset: str = Form(...),
+@router.post("/ui/dsp/volume_step")
+async def ui_dsp_volume_step(
+    direction: str = Form(...),
 ):
     state = get_public_state()
-    return await _handle_dsp_recall(preset, state=state, redirect="/")
+    if not state.get("current_lesson"):
+        return RedirectResponse(url="/", status_code=303)
+
+    presets = ["U01", "U02", "U03", "U04"]
+    current = state.get("volume_preset") or "U02"
+    if current not in presets:
+        current = "U02"
+
+    idx = presets.index(current)
+    step = 1 if direction == "up" else -1
+    new_idx = max(0, min(len(presets) - 1, idx + step))
+    return await _handle_dsp_recall(presets[new_idx], state=state, redirect="/")
 
 
 @router.post('/auth/pin')
