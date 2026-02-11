@@ -25,9 +25,8 @@
       <!-- PROIETTORE -->
       <section class="panel">
         <div class="panel-title">PROIETTORE</div>
-        <!--<label class="op-label small">Power</label>-->
+        <label class="op-label small">Power</label>
         <div class="row wrap">
-          <label class="op-label small">Power</label>
           <form method="post" action="/operator/projector/power" class="row gap28"><input type="hidden" name="on" value="true"><button class="btn-mini ok w-full">ACCENDI</button></form>
           <form method="post" action="/operator/projector/power" class="row gap28"><input type="hidden" name="on" value="false"><button class="btn-mini danger w-full">SPEGNI</button></form>
         </div>
@@ -84,6 +83,13 @@
             </button>
           </form>
 
+          <!-- GAIN - -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_a">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in0 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_a" in dsp_levels %}
@@ -92,6 +98,13 @@
               &mdash;
             {% endif %}
           </span>
+
+          <!-- GAIN + -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_a">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in0 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -109,6 +122,13 @@
             </button>
           </form>
 
+          <!-- GAIN - -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_b">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in1 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_b" in dsp_levels %}
@@ -117,6 +137,13 @@
               &mdash;
             {% endif %}
           </span>
+
+          <!-- GAIN + -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_b">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in1 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -137,6 +164,13 @@
             </button>
           </form>
 
+          <!-- GAIN - -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_c">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in2 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_c" in dsp_levels %}
@@ -145,6 +179,13 @@
               &mdash;
             {% endif %}
           </span>
+
+          <!-- GAIN + -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_c">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in2 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -162,6 +203,13 @@
             </button>
           </form>
 
+          <!-- GAIN - -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_d">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in3 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <!-- Valore -->
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "in_d" in dsp_levels %}
@@ -170,6 +218,13 @@
               &mdash;
             {% endif %}
           </span>
+
+          <!-- GAIN + -->
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="in_d">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_in3 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -192,6 +247,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out0">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out0 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out0" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out0"]["gain"] or 0.0) }}&nbsp;dB
@@ -199,6 +260,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out0">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out0 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -215,6 +282,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out1">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out1 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out1" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out1"]["gain"] or 0.0) }}&nbsp;dB
@@ -222,6 +295,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out1">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out1 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -241,6 +320,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out2">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out2 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out2" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out2"]["gain"] or 0.0) }}&nbsp;dB
@@ -248,6 +333,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out2">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out2 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -264,6 +355,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out3">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out3 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out3" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out3"]["gain"] or 0.0) }}&nbsp;dB
@@ -271,6 +368,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out3">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out3 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -290,6 +393,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out4">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out4 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out4" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out4"]["gain"] or 0.0) }}&nbsp;dB
@@ -297,6 +406,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out4">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out4 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -313,6 +428,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out5">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out5 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out5" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out5"]["gain"] or 0.0) }}&nbsp;dB
@@ -320,6 +441,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out5">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out5 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -339,6 +466,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out6">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out6 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out6" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out6"]["gain"] or 0.0) }}&nbsp;dB
@@ -346,6 +479,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out6">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out6 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
 
@@ -362,6 +501,12 @@
             </button>
           </form>
 
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out7">
+            <input type="hidden" name="delta" value="-1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out7 else '' }}">GAIN&nbsp;−</button>
+          </form>
+
           <span class="op-label small mono dsp-label">
             {% if dsp_levels and "out7" in dsp_levels %}
               {{ "%.1f"|format(dsp_levels["out7"]["gain"] or 0.0) }}&nbsp;dB
@@ -369,6 +514,12 @@
               &mdash;
             {% endif %}
           </span>
+
+          <form method="post" action="/operator/dsp/gain" class="row gap4">
+            <input type="hidden" name="bus" value="out7">
+            <input type="hidden" name="delta" value="+1">
+            <button class="btn-mini w-full {{ 'disabled' if not used_out7 else '' }}">GAIN&nbsp;+</button>
+          </form>
         </div>
       </div>
     </div>
@@ -469,24 +620,12 @@
         {% set sched_enabled = sched.get('enabled', False) %}
 
        
-        <form method="post" action="/operator/power_schedule" class="column gap8 power-schedule-form" novalidate>
+        <form method="post" action="/operator/power_schedule" class="column gap8 power-schedule-form">
           <div class="row wrap gap12 align-center">
             <label class="op-label small">Accensione</label>
-            <input type="text"
-                   name="on_time"
-                   value="{{ sched_on }}"
-                   class="input-time num-pad-input"
-                   inputmode="numeric"
-                   maxlength="5"
-                   placeholder="hh:mm">
+            <input type="time" name="on_time" value="{{ sched_on }}" class="input-time">
             <label class="op-label small">Spegnimento</label>
-            <input type="text"
-                   name="off_time"
-                   value="{{ sched_off }}"
-                   class="input-time num-pad-input"
-                   inputmode="numeric"
-                   maxlength="5"
-                   placeholder="hh:mm">
+            <input type="time" name="off_time" value="{{ sched_off }}" class="input-time">
             <label class="op-label small row align-center gap4">
               <input type="checkbox" name="enabled" value="true" {% if sched_enabled %}checked{% endif %}>
               <span>Abilitato</span>
@@ -513,24 +652,12 @@
           </div>
         </form>
 
-        <form method="post" action="/ui/special/set_datetime" class="column gap8" novalidate>
+        <form method="post" action="/ui/special/set_datetime" class="column gap8">
           <div class="row wrap gap12 align-center">
             <label class="op-label small" for="rtc-date">Data</label>
-            <input id="rtc-date"
-                   type="text"
-                   name="date"
-                   class="input-time num-pad-input"
-                   inputmode="numeric"
-                   maxlength="10"
-                   placeholder="yyyy-mm-dd">
+            <input id="rtc-date" type="date" name="date" class="input-time">
             <label class="op-label small" for="rtc-time">Ora</label>
-            <input id="rtc-time"
-                   type="text"
-                   name="time"
-                   class="input-time num-pad-input"
-                   inputmode="numeric"
-                   maxlength="5"
-                   placeholder="hh:mm">
+            <input id="rtc-time" type="time" name="time" class="input-time" step="60">
             <button class="btn-mini" type="submit">Imposta data/ora</button>
             <span class="op-label small">
               Vbat RTC:
@@ -589,33 +716,6 @@
   </div>
 </div>
 
-<!-- TASTIERINO NUMERICO -->
-<div id="num-pad" class="num-pad hidden" aria-hidden="true">
-  <div class="num-pad-backdrop" data-numpad-close></div>
-  <div class="num-pad-panel" role="dialog" aria-label="Tastierino numerico">
-    <div class="num-pad-header">
-      <div class="num-pad-title">Inserimento numerico</div>
-      <button type="button" class="btn-mini num-pad-close" data-numpad-close>Chiudi</button>
-    </div>
-    <div class="num-pad-display" data-numpad-display></div>
-    <div class="num-pad-grid">
-      <button type="button" class="num-pad-key" data-key="1">1</button>
-      <button type="button" class="num-pad-key" data-key="2">2</button>
-      <button type="button" class="num-pad-key" data-key="3">3</button>
-      <button type="button" class="num-pad-key" data-key="4">4</button>
-      <button type="button" class="num-pad-key" data-key="5">5</button>
-      <button type="button" class="num-pad-key" data-key="6">6</button>
-      <button type="button" class="num-pad-key" data-key="7">7</button>
-      <button type="button" class="num-pad-key" data-key="8">8</button>
-      <button type="button" class="num-pad-key" data-key="9">9</button>
-      <button type="button" class="num-pad-key" data-key="-">-</button>
-      <button type="button" class="num-pad-key" data-key="0">0</button>
-      <button type="button" class="num-pad-key" data-key=":">:</button>
-      <button type="button" class="num-pad-key num-pad-action" data-key="back">⌫</button>
-      <button type="button" class="num-pad-key num-pad-action" data-key="clear">C</button>
-    </div>
-  </div>
-</div>
 
 <!-- Script Tab (client-side) -->
 <script>
@@ -688,7 +788,6 @@
   const forms = document.querySelectorAll('form');
   forms.forEach(form => {
     form.addEventListener('submit', () => {
-      closeNumpad();
       const action = form.getAttribute('action') || '';
       let title = 'Operazione in corso';
       let text  = 'Operazione in corso, attendere…';
@@ -710,99 +809,6 @@
       openSceneOverlay(title, text);
     });
   }); 
-
-  const numpad = document.getElementById('num-pad');
-  const numpadDisplay = numpad ? numpad.querySelector('[data-numpad-display]') : null;
-  const numpadInputs = Array.from(document.querySelectorAll('.num-pad-input'));
-  let activeInput = null;
-
-  function updateNumpadDisplay() {
-    if (!numpadDisplay) return;
-    numpadDisplay.textContent = activeInput ? activeInput.value : '';
-  }
-
-  function openNumpad(input) {
-    if (!numpad) return;
-    activeInput = input;
-    updateNumpadDisplay();
-    numpad.classList.remove('hidden');
-    numpad.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeNumpad() {
-    if (!numpad) return;
-    activeInput = null;
-    numpad.classList.add('hidden');
-    numpad.setAttribute('aria-hidden', 'true');
-  }
-
-  function insertAtCursor(input, text) {
-    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
-    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
-    input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
-    const cursor = start + text.length;
-    if (input.setSelectionRange) {
-      input.setSelectionRange(cursor, cursor);
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    updateNumpadDisplay();
-  }
-
-  function handleBackspace(input) {
-    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
-    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : input.value.length;
-    if (start !== end) {
-      input.value = `${input.value.slice(0, start)}${input.value.slice(end)}`;
-      if (input.setSelectionRange) {
-        input.setSelectionRange(start, start);
-      }
-    } else if (start > 0) {
-      input.value = `${input.value.slice(0, start - 1)}${input.value.slice(end)}`;
-      if (input.setSelectionRange) {
-        input.setSelectionRange(start - 1, start - 1);
-      }
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    updateNumpadDisplay();
-  }
-
-  function clearInput(input) {
-    input.value = '';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    updateNumpadDisplay();
-  }
-
-  numpadInputs.forEach(input => {
-    input.addEventListener('focus', () => openNumpad(input));
-    input.addEventListener('click', () => openNumpad(input));
-  });
-
-  if (numpad) {
-    numpad.addEventListener('pointerdown', event => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const key = target.getAttribute('data-key');
-      if (!key) return;
-      event.preventDefault();
-      if (!activeInput) return;
-      if (key === 'back') {
-        handleBackspace(activeInput);
-        return;
-      }
-      if (key === 'clear') {
-        clearInput(activeInput);
-        return;
-      }
-      insertAtCursor(activeInput, key);
-    });
-
-    numpad.querySelectorAll('[data-numpad-close]').forEach(el => {
-      el.addEventListener('click', event => {
-        event.preventDefault();
-        closeNumpad();
-      });
-    });
-  }
 })();
 </script>
 
@@ -813,11 +819,10 @@
   border: 1px solid var(--c-border, #ccc);
   border-radius: 6px;
   background: var(--c-bg, #8f8f8f);
-  font-size: 18px;
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
-}
+}s
 .tab-btn.tab-active {
   background: var(--c-accent, #1a6bab);
   border-color: var(--c-accent-b, #8ac3ff);
@@ -901,85 +906,6 @@
   border: 1px solid var(--c-border, #cbd5e1);
   background: #354369;
   font-weight: 600;
-}
-
-.num-pad {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-}
-
-.num-pad.hidden {
-  display: none;
-}
-
-.num-pad-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-}
-
-.num-pad-panel {
-  position: relative;
-  z-index: 1;
-  width: 320px;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--c-border, #cbd5e1);
-  background: #1f2a4a;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-}
-
-.num-pad-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.num-pad-title {
-  font-weight: 700;
-}
-
-.num-pad-display {
-  margin-bottom: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--c-border, #cbd5e1);
-  background: #111827;
-  color: #e2e8f0;
-  font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-  min-height: 36px;
-  text-align: center;
-}
-
-.num-pad-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.num-pad-key {
-  border-radius: 8px;
-  border: 1px solid var(--c-border, #cbd5e1);
-  background: #2b3a63;
-  color: #f8fafc;
-  padding: 10px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.num-pad-key:active {
-  transform: scale(0.98);
-}
-
-.num-pad-action {
-  background: #3c4a73;
 }
 
 .weekday-chip {

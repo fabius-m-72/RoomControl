@@ -5,5 +5,5 @@ days:
 - thu
 - sat
 enabled: true
-off_time: 11:38
-on_time: 11:36
+off_time: '07:30'
+on_time: '19:30'

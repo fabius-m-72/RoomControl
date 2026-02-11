@@ -57,6 +57,7 @@ rsync -a --delete \
   --exclude ".git" \
   --exclude ".venv" \
   --exclude "config/*.yaml" \
+  --exclude "config/power_scheduler.py" \
   "${SCRIPT_DIR}/" "$APP_DIR/"
 chown -R "$SYSTEM_USER:$SYSTEM_USER" "$APP_DIR"
 

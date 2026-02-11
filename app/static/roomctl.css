@@ -22,7 +22,7 @@
   --cell-h: calc((var(--grid-h) - var(--gap)) / 2);
 }
 
-html, body { width:100%; height:100%; }
+html, body { width:100%; height:100%; overscroll-behavior-x: none;}
 body {
   display:flex; align-items:center; justify-content:center;
   margin: 0;
@@ -54,11 +54,11 @@ button, input, select, textarea {
   display: flex; align-items: center;
 }
 .title{
-  font-size: 16px; letter-spacing: .2em; font-weight: 600; color: #fff;
+  font-size: 18px; letter-spacing: .2em; font-weight: 600; color: #fff;
 }
 .clock-label{
   margin-left: auto;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #e2e8f0;
@@ -127,7 +127,7 @@ button, input, select, textarea {
   cursor: not-allowed;
 }
 .btn-volume.vol-step{
-  background: #b45309;
+  background: #d9b804;
 }
 
 /* Footer */
@@ -149,7 +149,7 @@ button, input, select, textarea {
   padding: 10px 16px;
   border-radius: 14px;
    background: rgba(255,255,255,.14);
-  color:#fff; font-weight:800;
+  color:#fff; font-size: 18px; font-weight:800;
 
   box-shadow:0 2px 6px rgba(0,0,0,.25);
   min-width: 160px; text-align: center;
@@ -161,7 +161,7 @@ button, input, select, textarea {
   border-radius:10px; padding:10px 12px; color:#fff; min-width: 160px; background:#1f2937; border:1px solid rgba(255,255,255,.24);
 }
 .btn-operator{
-  border-radius:12px; padding:12px 16px; font-weight:800;
+  border-radius:12px; padding:12px 16px; font-size: 18px; font-weight:800;
   background: #1f3d48; color:#fff;
 }
 /* ====== Layout operatore compatto (no scroll) ====== */
@@ -277,7 +277,6 @@ button, input, select, textarea {
 .pin-key:active {
   background: #1b2636;
   transform: translateY(1px);
-}
 }
 
 .pin-key-action {

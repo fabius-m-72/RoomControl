@@ -42,14 +42,16 @@ SCHEDULE_PATH = Path(os.environ.get("ROOMCTL_POWER_SCHEDULE", "/opt/roomctl/conf
 
 DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
-dbg=True
+dbg=bool(os.environ.get("ROOMCTL_POWER_DEBUG"))
 
 def _load_schedule() -> dict:
     if not SCHEDULE_PATH.is_file():
         return {}
     with SCHEDULE_PATH.open("r", encoding="utf-8") as f:
-        if dbg==True: print("schedule: ", yaml.safe_load(f))
-        return yaml.safe_load(f) or {}
+        payload = yaml.safe_load(f) or {}
+        if dbg:
+            print("schedule: ", payload)
+        return payload
 
 
 def _normalize_time(value, default: str) -> str:
@@ -85,15 +87,19 @@ def _normalize_time(value, default: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 
-def _normalize_schedule(data: dict | None) -> dict:
-    data = data or {}
+def _normalize_schedule(rdata: dict | None) -> dict:
+    data = rdata or {}
     on_time = _normalize_time(data.get("on_time"), "07:30")
     off_time = _normalize_time(data.get("off_time"), "19:00")
     days = [str(d).strip().lower() for d in (data.get("days") or []) if str(d).strip()]
     if not days:
         days = list(DAY_ORDER[:5])
     enabled = bool(data.get("enabled", False))
-    if dbg==True : print("schedule_normalized: ",{"on_time": on_time,"off_time": off_time,"days": days,"enabled": enabled,})
+    if dbg:
+        print(
+            "schedule_normalized: ",
+            {"on_time": on_time, "off_time": off_time, "days": days, "enabled": enabled},
+        )
     return {
         "on_time": on_time,
         "off_time": off_time,
@@ -134,13 +140,23 @@ def _detect_rtc_device() -> tuple[Path | None, Path | None]:
             dev = Path("/dev") / entry.name
             wakealarm = entry / "wakealarm"
             if dev.exists():
-                if dbg==True :print("dev_rtc_detected: ",dev, wakealarm if wakealarm.is_file() else None0)
+                if dbg:
+                    print(
+                        "dev_rtc_detected: ",
+                        dev,
+                        wakealarm if wakealarm.is_file() else None,
+                    )
                 return dev, wakealarm if wakealarm.is_file() else None
 
     for candidate in (Path("/dev/rtc"), Path("/dev/rtc0")):
         if candidate.exists():
             wakealarm = Path("/sys/class/rtc/rtc0/wakealarm")
-            if dbg==True : print("rtc_detected: ",candidate, wakealarm if wakealarm.is_file() else None)
+            if dbg:
+                print(
+                    "rtc_detected: ",
+                    candidate,
+                    wakealarm if wakealarm.is_file() else None,
+                )
             return candidate, wakealarm if wakealarm.is_file() else None
 
     return None, None
@@ -180,8 +196,16 @@ def _schedule_systemd(unit: str, when: dt.datetime, command: list[str]) -> bool:
     if ctl:
         for suffix in (".timer", ".service"):
             name = f"{unit}{suffix}"
-            subprocess.run([ctl, "stop", name], check=False)
-            subprocess.run([ctl, "reset-failed", name], check=False)
+            state = subprocess.run(
+                [ctl, "show", "--value", "-p", "LoadState", name],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if state.stdout.strip() != "not-found":
+                subprocess.run([ctl, "stop", name], check=False)
+                subprocess.run([ctl, "reset-failed", name], check=False)
+
 
     def _supports_replace() -> bool:
         try:

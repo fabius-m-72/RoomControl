@@ -36,10 +36,10 @@ set -euo pipefail
 # sudo reboot
 ################################################################################
 # ====== PARAMETRI MODIFICABILI ======
-KIOSK_URL="${KIOSK_URL:-https://www.unisalento.it}"
+KIOSK_URL="${KIOSK_URL:-127.0.0.1:8080}"
 ROTATION="${ROTATION:-rotate-270}"        # rotate-90 oppure rotate-270
 EXT_SCOPE="${EXT_SCOPE:-domain}"          # domain | all
-KIOSK_USER="${KIOSK_USER:-${SUDO_USER:-pi}}"
+KIOSK_USER="${KIOSK_USER:-${SUDO_USER:-roomctl}}"
 # ====================================
 
 BOOT_CMDLINE="/boot/firmware/cmdline.txt"
