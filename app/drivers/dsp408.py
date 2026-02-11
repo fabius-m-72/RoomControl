@@ -246,20 +246,23 @@ class DSP408Client:
 					return val.strip().lower() in ("true", "1", "on", "yes")
 				return bool(val)
 
+			def _is_enabled(ch_map: Dict[str, bool], ch_key: str) -> bool:
+				return _as_bool(ch_map.get(ch_key, True))
+
 			# IN 0..3 e OUT 0..3
 			for ch in (0, 1, 2, 3):
 				ch_s = str(ch)
-				mute_in = bool(on) and (_as_bool(in_map.get(ch_s, True)) or bool(on))
-				print("mute-in(",ch_s,")=",mute_in)
-				self._cli.set_mute(is_output=False, channel=ch, mute=mute_in)
-				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
-				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
+				if _is_enabled(in_map, ch_s):
+					print("mute-in(", ch_s, ")=", bool(on))
+					self._cli.set_mute(is_output=False, channel=ch, mute=bool(on))
+				if _is_enabled(out_map, ch_s):
+					self._cli.set_mute(is_output=True, channel=ch, mute=bool(on))
 
 			# OUT 4..7
 			for ch in (4, 5, 6, 7):
 				ch_s = str(ch)
-				mute_out = bool(on) and _as_bool(out_map.get(ch_s, True))
-				self._cli.set_mute(is_output=True, channel=ch, mute=mute_out)
+				if _is_enabled(out_map, ch_s):
+					self._cli.set_mute(is_output=True, channel=ch, mute=bool(on))
 
 		await asyncio.to_thread(_do)
 
@@ -320,6 +323,5 @@ class DSP408Client:
 						v[bus] = val
 					return {"gain": g, "volume": v}
 			return await asyncio.to_thread(_do)
-
 
 
